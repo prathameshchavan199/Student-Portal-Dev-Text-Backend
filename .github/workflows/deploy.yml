@@ -41,7 +41,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /StudentPortal/backend
+            cd /StudentPortal
             mv target/*.jar backend.jar || true
             sudo systemctl restart studentportal
             sudo systemctl status studentportal
