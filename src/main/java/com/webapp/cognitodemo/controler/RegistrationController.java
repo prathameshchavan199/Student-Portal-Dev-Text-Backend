@@ -21,7 +21,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.*;
 
-@Tag(name = "Registration", description = "Submit and draft registration forms; file upload/download via S3")
+@Tag(name = "Registration", description = "Registration forms; file upload/download via S3")
 @RestController
 @RequestMapping("/api/registration")
 @CrossOrigin(
