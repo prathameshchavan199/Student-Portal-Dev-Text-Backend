@@ -3,7 +3,7 @@ name: Deploy Student Portal Backend
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   deploy:
