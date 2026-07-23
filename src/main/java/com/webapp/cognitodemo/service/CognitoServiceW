@@ -1,0 +1,169 @@
+package com.webapp.cognitodemo.service;
+
+import com.webapp.cognitodemo.entity.ConfirmRequest;
+import com.webapp.cognitodemo.entity.LoginRequest;
+import com.webapp.cognitodemo.entity.SignupRequest;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+
+import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+
+@Service
+public class CognitoService {
+
+    @Autowired
+    private CognitoIdentityProviderClient cognitoClient;
+
+    @Value("${aws.cognito.clientId}")
+    private String clientId;
+
+    @Value("${aws.cognito.clientSecret}")
+    private String clientSecret;
+
+    @Value("${aws.cognito.userPoolId}")
+    private String userPoolID;
+
+    /*
+     * GENERATE SECRET HASH
+     */
+    private String calculateSecretHash(
+            String username) {
+
+        try {
+
+            String data = username + clientId;
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+
+            SecretKeySpec secretKeySpec =
+                    new SecretKeySpec(
+                            clientSecret.getBytes(),
+                            "HmacSHA256"
+                    );
+
+            mac.init(secretKeySpec);
+
+            byte[] rawHmac =
+                    mac.doFinal(data.getBytes());
+
+            return Base64.getEncoder()
+                    .encodeToString(rawHmac);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Error while calculating secret hash",
+                    e
+            );
+        }
+    }
+
+    /*
+     * SIGNUP WORKING
+     */
+    public void signup(SignupRequest request) {
+
+        SignUpRequest signUpRequest =
+                SignUpRequest.builder()
+                        .clientId(clientId)
+                        .secretHash(
+                                calculateSecretHash(
+                                        request.getEmail()
+                                )
+                        )
+                        .username(request.getEmail())
+                        .password(request.getPassword())
+                        .userAttributes(
+
+                                AttributeType.builder()
+                                        .name("email")
+                                        .value(request.getEmail())
+                                        .build(),
+
+                                AttributeType.builder()
+                                        .name("name")
+                                        .value(request.getName())
+                                        .build()
+
+                        )
+                        .build();
+
+        cognitoClient.signUp(signUpRequest);
+    }
+
+
+
+
+
+    /*
+     * LOGIN
+     */
+    public AuthenticationResultType login(
+            LoginRequest request) {
+
+        Map<String, String> authParams =
+                new HashMap<>();
+
+        authParams.put(
+                "USERNAME",
+                request.getEmail()
+        );
+
+        authParams.put(
+                "PASSWORD",
+                request.getPassword()
+        );
+
+        authParams.put(
+                "SECRET_HASH",
+                calculateSecretHash(
+                        request.getEmail()
+                )
+        );
+
+        InitiateAuthRequest authRequest =
+                InitiateAuthRequest.builder()
+                        .authFlow(
+                                AuthFlowType.USER_PASSWORD_AUTH
+                        )
+                        .clientId(clientId)
+                        .authParameters(authParams)
+                        .build();
+
+        InitiateAuthResponse response =
+                cognitoClient.initiateAuth(authRequest);
+
+        return response.authenticationResult();
+    }
+
+    /*
+     * CONFIRM USER
+     */
+    public void confirmUser(
+            ConfirmRequest request) {
+
+        ConfirmSignUpRequest confirmRequest =
+                ConfirmSignUpRequest.builder()
+                        .clientId(clientId)
+                        .secretHash(
+                                calculateSecretHash(
+                                        request.getEmail()
+                                )
+                        )
+                        .username(request.getEmail())
+                        .confirmationCode(request.getOtp())
+                        .build();
+
+        cognitoClient.confirmSignUp(confirmRequest);
+    }
+}
