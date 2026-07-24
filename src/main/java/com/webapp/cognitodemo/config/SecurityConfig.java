@@ -58,11 +58,7 @@ public class SecurityConfig {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs",
-                                "/v3/api-docs/**"
-                        ).permitAll()
-
-                        .requestMatchers(
-
+                                "/v3/api-docs/**",
                                 "/api/users/signup",
                                 "/api/users/login",
                                 "/api/users/confirm",
@@ -71,7 +67,6 @@ public class SecurityConfig {
                                 "/api/users/forgot-password",
                                 "/api/users/reset-password",
                                 "/api/users/refresh"
-
                         ).permitAll()
                         .requestMatchers("/api/registration/file/**").authenticated()
                         .anyRequest().authenticated()
@@ -107,7 +102,6 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                       "https://*.amplifyapp.com",
                         "https://master.d1bdgx8dlzpdhq.amplifyapp.com"
 
                 )
