@@ -102,7 +102,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://master.d1bdgx8dlzpdhq.amplifyapp.com"
+                        "https://master.d1bdgx8dlzpdhq.amplifyapp.com",
+                        "https://student-portal-dev-text-frontend-us.vercel.app"
 
                 )
         );
@@ -121,6 +122,8 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+        System.out.println("Allowed Origins = " + configuration.getAllowedOrigins());
+        System.out.println("Allowed Methods = " + configuration.getAllowedMethods());
 
         return source;
     }
