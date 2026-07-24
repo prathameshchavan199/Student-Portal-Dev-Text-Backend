@@ -107,8 +107,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(
                 List.of(
                         "http://localhost:5173",
-                        "https://3j8wr6c6-5173.inc1.devtunnels.ms",
-                        "https://3j8wr6c6-5173.inc1.devtunnels.ms","https://*.amplifyapp.com"
+                       "https://*.amplifyapp.com",
+                        "https://master.d1bdgx8dlzpdhq.amplifyapp.com"
 
                 )
         );
