@@ -19,7 +19,9 @@ import java.util.Map;
 @RequestMapping("/api/payment")
 @CrossOrigin(
         origins = {"http://localhost:5173",
-                "https://*.amplifyapp.com"},
+                "https://*.amplifyapp.com","https://master.d1bdgx8dlzpdhq.amplifyapp.com"
+                },
+
 
         allowCredentials = "true"
 )

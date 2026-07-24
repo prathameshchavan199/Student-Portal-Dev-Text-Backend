@@ -26,7 +26,8 @@ import java.util.*;
 @RequestMapping("/api/registration")
 @CrossOrigin(
         origins = {"http://localhost:5173",
-                "https://*.amplifyapp.com"},
+                "https://*.amplifyapp.com","https://master.d1bdgx8dlzpdhq.amplifyapp.com"
+        },
         allowCredentials = "true"
 )
 public class RegistrationController {

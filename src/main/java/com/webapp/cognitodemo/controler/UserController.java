@@ -30,7 +30,10 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/users")
 @CrossOrigin(
-        origins = {"http://localhost:5173","https://3j8wr6c6-5173.inc1.devtunnels.ms,","https://3j8wr6c6-5173.inc1.devtunnels.ms/login"},
+        origins = {"http://localhost:5173",
+                "https://*.amplifyapp.com",
+                "https://master.d1bdgx8dlzpdhq.amplifyapp.com"
+        },
         allowCredentials = "true"
 )
 public class UserController {
