@@ -32,7 +32,7 @@ public class OpenApiConfig {
                                 .name("Student Portal Team")
                                 .email("cprathamesh199@gmail.com")))
                 .servers(List.of(
-                        new Server().url("http://13.201.129.245:8081/").description("Ec2 Server development")))
+                        new Server().url("http://localhost:8081").description("Ec2 Server development")))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth", new SecurityScheme()
