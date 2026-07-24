@@ -17,14 +17,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/payment")
-@CrossOrigin(
-        origins = {"http://localhost:5173",
-                "https://*.amplifyapp.com","https://master.d1bdgx8dlzpdhq.amplifyapp.com"
-                },
-
-
-        allowCredentials = "true"
-)
 public class PaymentController {
 
     @Autowired

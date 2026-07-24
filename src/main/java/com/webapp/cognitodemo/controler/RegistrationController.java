@@ -24,12 +24,6 @@ import java.util.*;
 @Tag(name = "Registration", description = "Registration forms submit,check and upload/download via S3")
 @RestController
 @RequestMapping("/api/registration")
-@CrossOrigin(
-        origins = {"http://localhost:5173",
-                "https://*.amplifyapp.com","https://master.d1bdgx8dlzpdhq.amplifyapp.com"
-        },
-        allowCredentials = "true"
-)
 public class RegistrationController {
 
     @Autowired private RegistrationService registrationService;

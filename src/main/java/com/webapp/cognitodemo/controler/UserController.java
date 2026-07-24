@@ -29,13 +29,12 @@ import java.util.Optional;
 @Tag(name = "Users", description = "Authentication, signup, OTP, password reset and user management")
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(
-        origins = {"http://localhost:5173",
-                "https://*.amplifyapp.com",
-                "https://master.d1bdgx8dlzpdhq.amplifyapp.com"
-        },
-        allowCredentials = "true"
-)
+//@CrossOrigin(
+//        origins = {"http://localhost:5173",
+//                "https://master.d1bdgx8dlzpdhq.amplifyapp.com"
+//        },
+//        allowCredentials = "true"
+//)
 public class UserController {
 
     @Autowired
