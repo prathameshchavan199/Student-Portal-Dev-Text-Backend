@@ -136,8 +136,8 @@ public class UserController {
                                 authResult.idToken()
                         )
                         .httpOnly(true)
-                        .secure(false)
-                        .sameSite("Lax")
+                        .secure(true)
+                        .sameSite("None")
                         .path("/")
                         .maxAge(3600)
                         .build();
