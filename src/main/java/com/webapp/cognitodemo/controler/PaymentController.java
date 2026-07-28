@@ -36,6 +36,7 @@ public class PaymentController {
             Authentication authentication) {
 
         try {
+            System.out.println("Payment API called");
 
             String email =
                     (authentication != null)
@@ -58,6 +59,7 @@ public class PaymentController {
         } catch (Exception e) {
 
             e.printStackTrace();
+            System.out.println("Error Meges:"+e.getMessage());
 
             return ResponseEntity.internalServerError()
                     .body(
