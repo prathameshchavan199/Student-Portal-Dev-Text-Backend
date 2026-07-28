@@ -23,7 +23,7 @@ public class CreateOrderRequest {
      */
     private String currency = "INR";
 
-    private Long courseId;
+    private String courseId;
 
     private String courseName;
 }

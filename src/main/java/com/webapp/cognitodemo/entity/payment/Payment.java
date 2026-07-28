@@ -27,7 +27,7 @@ public class Payment {
     /*
      * Course this payment is for
      */
-    private Long courseId;
+    private String courseId;
 
     private String courseName;
 
