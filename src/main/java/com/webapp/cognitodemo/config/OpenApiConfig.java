@@ -21,7 +21,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("Student Portal API")
                         .description("""
-                                REST API for the Student Portal backend.
+                                REST API format for the Student Portal backend.
 
                                 **Authentication:** After calling `/api/users/login`, copy the `idToken` \
                                 value from the browser cookie and paste it into the Authorize dialog \
