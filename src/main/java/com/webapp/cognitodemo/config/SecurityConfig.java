@@ -95,35 +95,31 @@ public class SecurityConfig {
     }
 
 
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(
-                List.of(
-                        "http://localhost:5173",
-                        "https://master.d1bdgx8dlzpdhq.amplifyapp.com",
-                        "https://student-portal-dev-text-frontend-us.vercel.app"
 
-                )
-        );
-        configuration.setAllowedMethods(
-                List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-        );
-        configuration.setAllowedHeaders(
-                List.of("*")
-        );
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://master.d1bdgx8dlzpdhq.amplifyapp.com/"
+        ));
 
-        configuration.setExposedHeaders(
-                List.of("Set-Cookie")
-        );
+        configuration.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(List.of("*"));
+
+        configuration.setExposedHeaders(List.of("Set-Cookie"));
+
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source =
                 new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-        System.out.println("Allowed Origins = " + configuration.getAllowedOrigins());
-        System.out.println("Allowed Methods = " + configuration.getAllowedMethods());
 
         return source;
     }
