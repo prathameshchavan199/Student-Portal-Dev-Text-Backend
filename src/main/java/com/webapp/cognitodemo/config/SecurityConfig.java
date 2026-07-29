@@ -105,7 +105,8 @@ public class SecurityConfig {
                 "http://localhost:3000",
                 "http://localhost:5173",
                 "https://3j8wr6c6-5173.inc1.devtunnels.ms/",
-                "https://master.d1bdgx8dlzpdhq.amplifyapp.com/"
+                "https://master.d1bdgx8dlzpdhq.amplifyapp.com/",
+                "https://studentportal.cyfenix.com/"
         ));
 
         configuration.setAllowedMethods(List.of(
