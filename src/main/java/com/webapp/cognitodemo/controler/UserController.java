@@ -1,7 +1,6 @@
 package com.webapp.cognitodemo.controler;
 
 import com.webapp.cognitodemo.entity.*;
-import com.webapp.cognitodemo.entity.OTP.OtpRequest;
 import com.webapp.cognitodemo.entity.OTP.VerifyOtpRequest;
 import com.webapp.cognitodemo.service.CognitoService;
 import com.webapp.cognitodemo.service.EmailService;
