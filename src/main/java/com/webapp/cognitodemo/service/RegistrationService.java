@@ -154,6 +154,8 @@ public class RegistrationService {
         target.setUndergraduateOtherDegree(req.getUndergraduateOtherDegree());
         target.setBtechBranch(req.getBtechDegree());
         target.setUndergraduateUniversity(req.getUndergraduateUniversity());
+        target.setUndergraduateGpa(req.getUndergraduateGpa());
+        target.setUndergraduateYearOfPassing(req.getUndergraduateYearOfPassing());
         if (hasContent(undergraduateMarksheetFile)) {
             String key = s3Service.upload(s3Key(email, "undergraduate_certificate", undergraduateMarksheetFile), undergraduateMarksheetFile);
             target.setUndergraduateCertificateKey(key);
@@ -165,6 +167,8 @@ public class RegistrationService {
         target.setPostGraduationDegree(req.getPostGraduationDegree());
         target.setPostGraduationOtherDegree(req.getPostGraduationOtherDegree());
         target.setPostGraduationUniversity(req.getPostGraduationUniversity());
+        target.setPostGraduationGpa(req.getPostGraduationGpa());
+        target.setPostGraduationYearOfPassing(req.getPostGraduationYearOfPassing());
         if (hasContent(postGraduationMarksheetFile)) {
             String key = s3Service.upload(s3Key(email, "post_graduation_certificate", postGraduationMarksheetFile), postGraduationMarksheetFile);
             target.setPostGraduationCertificateKey(key);

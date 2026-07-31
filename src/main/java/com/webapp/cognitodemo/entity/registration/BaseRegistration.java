@@ -65,6 +65,8 @@ public abstract class BaseRegistration {
     private String undergraduateOtherDegree;
     private String btechBranch;
     private String undergraduateUniversity;
+    private String undergraduateGpa;
+    private String undergraduateYearOfPassing;
 
     private String undergraduateCertificateKey;
     private String undergraduateCertificateFileName;
@@ -74,6 +76,8 @@ public abstract class BaseRegistration {
     private String postGraduationDegree;
     private String postGraduationOtherDegree;
     private String postGraduationUniversity;
+    private String postGraduationGpa;
+    private String postGraduationYearOfPassing;
 
     private String postGraduationCertificateKey;
     private String postGraduationCertificateFileName;

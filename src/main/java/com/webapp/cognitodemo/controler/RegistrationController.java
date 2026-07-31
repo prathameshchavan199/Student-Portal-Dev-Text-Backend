@@ -266,12 +266,16 @@ public class RegistrationController {
         map.put("undergraduateOtherDegree",    nvl(reg.getUndergraduateOtherDegree()));
         map.put("btechBranch",                 nvl(reg.getBtechBranch()));
         map.put("undergraduateUniversity",     nvl(reg.getUndergraduateUniversity()));
+        map.put("undergraduateGpa",            nvl(reg.getUndergraduateGpa()));
+        map.put("undergraduateYearOfPassing",  nvl(reg.getUndergraduateYearOfPassing()));
         map.put("hasUndergraduateCertificate", hasKey(reg.getUndergraduateCertificateKey()));
         map.put("undergraduateCertificateFileName", nvl(reg.getUndergraduateCertificateFileName()));
         map.put("hasPostGraduation",           reg.getHasPostGraduation() != null && reg.getHasPostGraduation());
         map.put("postGraduationDegree",        nvl(reg.getPostGraduationDegree()));
         map.put("postGraduationOtherDegree",   nvl(reg.getPostGraduationOtherDegree()));
         map.put("postGraduationUniversity",    nvl(reg.getPostGraduationUniversity()));
+        map.put("postGraduationGpa",           nvl(reg.getPostGraduationGpa()));
+        map.put("postGraduationYearOfPassing", nvl(reg.getPostGraduationYearOfPassing()));
         map.put("hasPostGraduationCertificate",hasKey(reg.getPostGraduationCertificateKey()));
         map.put("postGraduationCertificateFileName", nvl(reg.getPostGraduationCertificateFileName()));
         map.put("hasProjects",                 reg.getHasProjects() != null && reg.getHasProjects());

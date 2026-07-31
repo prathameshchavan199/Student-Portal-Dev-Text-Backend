@@ -66,6 +66,10 @@ public class RegistrationRequest {
     private String btechDegree;
     @Schema(example = "Pune University")
     private String undergraduateUniversity;
+    @Schema(description = "Undergraduate GPA or percentage", example = "8.5")
+    private String undergraduateGpa;
+    @Schema(description = "Undergraduate year of passing", example = "2022")
+    private String undergraduateYearOfPassing;
 
     // ── Postgraduate ──────────────────────────────────────────────────────────
     @Schema(description = "Whether the student has completed post-graduation")
@@ -76,6 +80,10 @@ public class RegistrationRequest {
     private String postGraduationOtherDegree;
     @Schema(example = "IIT Bombay")
     private String postGraduationUniversity;
+    @Schema(description = "Post graduation GPA or percentage", example = "9.1")
+    private String postGraduationGpa;
+    @Schema(description = "Post graduation year of passing", example = "2024")
+    private String postGraduationYearOfPassing;
 
     // ── Projects ──────────────────────────────────────────────────────────────
     @Schema(description = "Whether the student has projects to list")
