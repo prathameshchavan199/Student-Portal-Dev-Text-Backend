@@ -64,6 +64,7 @@ public class UserService {
                 new LoginResponse();
 
         response.setEmail(user.getEmail());
+        response.setId(user.getId());
         response.setName(user.getFullName());
         response.setRegistered(user.isRegistration());
 
