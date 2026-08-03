@@ -163,6 +163,17 @@ public class AssessmentController {
         }
     }
 
+    // ── Overall Progress ──────────────────────────────────────────────────────
+
+    @GetMapping("/progress")
+    public ResponseEntity<?> getProgress(Authentication auth) {
+        try {
+            return ResponseEntity.ok(Map.of("success", true, "data", assessmentService.getProgress(auth.getName())));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
     // ── Attempts ─────────────────────────────────────────────────────────────
 
     @GetMapping("/attempts")

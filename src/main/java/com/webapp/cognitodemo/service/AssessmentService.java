@@ -16,6 +16,8 @@ public class AssessmentService {
     @Autowired private McqSectionRepo sectionRepo;
     @Autowired private McqQuestionRepo questionRepo;
     @Autowired private UserAttemptRepo attemptRepo;
+    @Autowired private SpeakingAttemptRepo speakingAttemptRepo;
+    @Autowired private WritingAttemptRepo writingAttemptRepo;
 
     // ── Categories ───────────────────────────────────────────────────────────
 
@@ -124,12 +126,89 @@ public class AssessmentService {
         questionRepo.deleteById(id);
     }
 
+    // ── Overall Progress Stats ────────────────────────────────────────────────
+
+    public Map<String, Object> getProgress(String email) {
+        // Best score % per MCQ module
+        Map<String, Double> bestMcq = new HashMap<>();
+        for (UserAttempt a : attemptRepo.findByUserEmail(email)) {
+            double pct = a.getTotal() > 0 ? (a.getScore() * 100.0 / a.getTotal()) : 0;
+            bestMcq.merge(a.getModuleId(), pct, Math::max);
+        }
+
+        // Group MCQ scores by category
+        Map<String, List<Double>> byCat = new HashMap<>();
+        for (Map.Entry<String, Double> e : bestMcq.entrySet()) {
+            moduleRepo.findById(e.getKey()).ifPresent(mod ->
+                byCat.computeIfAbsent(mod.getCategoryId(), k -> new ArrayList<>()).add(e.getValue()));
+        }
+
+        // Speaking / writing best scores (already 0-100)
+        OptionalDouble bestSpeaking = speakingAttemptRepo
+                .findByUserEmailOrderByAttemptedAtDesc(email).stream()
+                .mapToDouble(SpeakingAttempt::getScore).max();
+        OptionalDouble bestWriting = writingAttemptRepo
+                .findByUserEmailOrderByAttemptedAtDesc(email).stream()
+                .mapToDouble(WritingAttempt::getScore).max();
+
+        // Skill averages
+        List<Double> techScores = new ArrayList<>();
+        if (byCat.containsKey("technical-skills")) techScores.addAll(byCat.get("technical-skills"));
+        if (byCat.containsKey("data-skills"))      techScores.addAll(byCat.get("data-skills"));
+        double technical    = avg(techScores);
+        double analytical   = avg(byCat.get("problem-solving"));
+        List<Double> commScores = new ArrayList<>();
+        if (bestSpeaking.isPresent()) commScores.add(bestSpeaking.getAsDouble());
+        if (bestWriting.isPresent())  commScores.add(bestWriting.getAsDouble());
+        double communication = avg(commScores.isEmpty() ? null : commScores);
+
+        // Mastery = average only across categories where the user has data
+        List<Double> masteryInputs = new ArrayList<>();
+        if (technical     > 0) masteryInputs.add(technical);
+        if (analytical    > 0) masteryInputs.add(analytical);
+        if (communication > 0) masteryInputs.add(communication);
+        int masteryPct = masteryInputs.isEmpty() ? 0
+                : (int) Math.round(masteryInputs.stream().mapToDouble(d -> d).average().getAsDouble());
+
+        int totalAttempted = bestMcq.size()
+                + (bestSpeaking.isPresent() ? 1 : 0)
+                + (bestWriting.isPresent()  ? 1 : 0);
+
+        // avgScore on 0-10 scale, 1 decimal
+        double avgScore = Math.round(masteryPct / 10.0 * 10.0) / 10.0;
+
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("completed",  totalAttempted);
+        m.put("avgScore",   avgScore);
+        m.put("overallPct", masteryPct);
+        return m;
+    }
+
+    private double avg(List<Double> list) {
+        if (list == null || list.isEmpty()) return 0;
+        return list.stream().mapToDouble(d -> d).average().orElse(0);
+    }
+
     // ── Attempts ─────────────────────────────────────────────────────────────
 
     public Map<String, List<Map<String, Object>>> getUserAttempts(String email) {
         Map<String, List<Map<String, Object>>> result = new LinkedHashMap<>();
-        attemptRepo.findByUserEmail(email).forEach(a ->
-                result.computeIfAbsent(a.getModuleId(), k -> new ArrayList<>()).add(attemptToMap(a)));
+
+        // MCQ attempts — exclude speaking/writing which now have dedicated tables
+        attemptRepo.findByUserEmail(email).stream()
+            .filter(a -> !"speaking-test".equals(a.getModuleId()) && !"writing-test".equals(a.getModuleId()))
+            .forEach(a -> result.computeIfAbsent(a.getModuleId(), k -> new ArrayList<>()).add(attemptToMap(a)));
+
+        // Speaking attempts — sorted ascending so attempt 1 is first in the list
+        speakingAttemptRepo.findByUserEmailOrderByAttemptedAtDesc(email).stream()
+            .sorted(Comparator.comparingInt(SpeakingAttempt::getAttemptNumber))
+            .forEach(a -> result.computeIfAbsent(a.getModuleId(), k -> new ArrayList<>()).add(speakingAttemptToMap(a)));
+
+        // Writing attempts — same ordering
+        writingAttemptRepo.findByUserEmailOrderByAttemptedAtDesc(email).stream()
+            .sorted(Comparator.comparingInt(WritingAttempt::getAttemptNumber))
+            .forEach(a -> result.computeIfAbsent(a.getModuleId(), k -> new ArrayList<>()).add(writingAttemptToMap(a)));
+
         return result;
     }
 
@@ -247,6 +326,28 @@ public class AssessmentService {
         m.put("moduleId", a.getModuleId());
         m.put("score", a.getScore());
         m.put("total", a.getTotal());
+        m.put("attemptNumber", a.getAttemptNumber());
+        m.put("attemptedAt", a.getAttemptedAt() != null ? a.getAttemptedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> speakingAttemptToMap(SpeakingAttempt a) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", a.getId());
+        m.put("moduleId", a.getModuleId());
+        m.put("score", a.getScore());
+        m.put("total", 100);
+        m.put("attemptNumber", a.getAttemptNumber());
+        m.put("attemptedAt", a.getAttemptedAt() != null ? a.getAttemptedAt().toString() : null);
+        return m;
+    }
+
+    private Map<String, Object> writingAttemptToMap(WritingAttempt a) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", a.getId());
+        m.put("moduleId", a.getModuleId());
+        m.put("score", a.getScore());
+        m.put("total", 100);
         m.put("attemptNumber", a.getAttemptNumber());
         m.put("attemptedAt", a.getAttemptedAt() != null ? a.getAttemptedAt().toString() : null);
         return m;

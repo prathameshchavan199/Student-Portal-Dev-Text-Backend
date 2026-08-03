@@ -4,6 +4,7 @@ import com.webapp.cognitodemo.entity.assessment.*;
 import com.webapp.cognitodemo.entity.course.Course;
 import com.webapp.cognitodemo.repo.*;
 import com.webapp.cognitodemo.service.AssessmentService;
+import com.webapp.cognitodemo.service.CommunicationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -18,11 +19,14 @@ public class DataSeeder implements ApplicationRunner {
     @Autowired private AssessmentCategoryRepo categoryRepo;
     @Autowired private AssessmentModuleRepo moduleRepo;
     @Autowired private AssessmentService assessmentService;
+    @Autowired private CommunicationService communicationService;
+    @Autowired private AssessmentTopicRepo topicRepo;
 
     @Override
     public void run(ApplicationArguments args) {
         seedCourses();
         seedAssessments();
+        seedTopics();
     }
 
     // ── Courses ───────────────────────────────────────────────────────────────
@@ -330,5 +334,65 @@ public class DataSeeder implements ApplicationRunner {
                 .icon(icon).type(type).description(description)
                 .duration(duration).questions(questions).displayOrder(order)
                 .build();
+    }
+
+    // ── Communication Topics ──────────────────────────────────────────────────
+
+    private void seedTopics() {
+        if (topicRepo.count() > 0) return;
+
+        // Speaking topics (5)
+        communicationService.seedTopic("speaking",
+            "The Future of Artificial Intelligence",
+            "Describe a time you solved a difficult technical problem.",
+            List.of());
+
+        communicationService.seedTopic("speaking",
+            "Cloud Computing in Modern Software Architecture",
+            "Walk me through how you would design a cloud-native application.",
+            List.of());
+
+        communicationService.seedTopic("speaking",
+            "Cybersecurity Best Practices for Developers",
+            "Describe how you identified and handled a security vulnerability in your project.",
+            List.of());
+
+        communicationService.seedTopic("speaking",
+            "The Impact of Open Source on Software Development",
+            "Describe your experience contributing to or using open source software.",
+            List.of());
+
+        communicationService.seedTopic("speaking",
+            "Agile Methodology in Team Projects",
+            "Describe a challenge you faced working in an Agile team and how you resolved it.",
+            List.of());
+
+        // Writing prompts (5) — each with topic-specific keywords for evaluation
+        communicationService.seedTopic("writing",
+            "Explain the impact of Edge Computing on IoT Scalability.",
+            "Discuss decentralized data processing, latency reduction, and bandwidth optimization in large-scale ecosystems.",
+            List.of("edge","computing","iot","scalability","decentralized","latency","bandwidth","processing","ecosystem","sensor","gateway","device","cloud","network"));
+
+        communicationService.seedTopic("writing",
+            "Discuss the role of Microservices Architecture in modern software development.",
+            "Cover service decomposition, API design, fault tolerance, and independent deployment strategies.",
+            List.of("microservices","architecture","service","api","deployment","container","scalability","fault","tolerance","kubernetes","docker","independent","endpoint","communication"));
+
+        communicationService.seedTopic("writing",
+            "Explain how DevOps practices improve software delivery pipelines.",
+            "Discuss CI/CD pipelines, automation, monitoring, and collaboration between development and operations teams.",
+            List.of("devops","ci","cd","pipeline","deployment","automation","monitoring","testing","infrastructure","docker","kubernetes","collaboration","agile","release"));
+
+        communicationService.seedTopic("writing",
+            "Describe the importance of API design in building scalable distributed systems.",
+            "Cover REST principles, versioning, authentication, rate limiting, and documentation strategies.",
+            List.of("api","rest","endpoint","integration","versioning","authentication","documentation","request","response","protocol","interface","scalable","distributed","design"));
+
+        communicationService.seedTopic("writing",
+            "Explain the impact of Machine Learning on data-driven decision making.",
+            "Discuss model selection, training data quality, bias mitigation, and deployment challenges.",
+            List.of("machine","learning","model","algorithm","data","training","prediction","bias","accuracy","classification","neural","feature","dataset","deployment"));
+
+        System.out.println("[DataSeeder] Seeded 5 speaking topics and 5 writing prompts.");
     }
 }

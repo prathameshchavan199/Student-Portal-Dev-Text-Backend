@@ -5,9 +5,11 @@ import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import com.razorpay.Utils;
 
+import com.webapp.cognitodemo.entity.course.CourseProgress;
 import com.webapp.cognitodemo.entity.payment.CreateOrderRequest;
 import com.webapp.cognitodemo.entity.payment.Payment;
 import com.webapp.cognitodemo.entity.payment.VerifyPaymentRequest;
+import com.webapp.cognitodemo.repo.CourseProgressRepo;
 import com.webapp.cognitodemo.repo.PaymentRepo;
 
 import org.json.JSONObject;
@@ -25,6 +27,9 @@ public class PaymentService {
 
     @Autowired
     private PaymentRepo paymentRepo;
+
+    @Autowired
+    private CourseProgressRepo courseProgressRepo;
 
     @Value("${razorpay.key.id}")
     private String keyId;
@@ -94,7 +99,8 @@ public class PaymentService {
      * came from Razorpay and was not tampered with.
      */
     public boolean verifyPayment(
-            VerifyPaymentRequest request) throws RazorpayException {
+            VerifyPaymentRequest request,
+            String callerEmail) throws RazorpayException {
 
         JSONObject options = new JSONObject();
         options.put(
@@ -122,6 +128,11 @@ public class PaymentService {
 
         if (payment != null) {
 
+            // Backfill userEmail from caller if it was null during create-order
+            if (payment.getUserEmail() == null && callerEmail != null) {
+                payment.setUserEmail(callerEmail);
+            }
+
             payment.setRazorpayPaymentId(
                     request.getRazorpayPaymentId()
             );
@@ -129,8 +140,31 @@ public class PaymentService {
                     request.getRazorpaySignature()
             );
             payment.setStatus(valid ? "PAID" : "FAILED");
-
             paymentRepo.save(payment);
+
+            // On successful payment, create a CourseProgress row (REGISTERED)
+            String emailForProgress = payment.getUserEmail() != null
+                    ? payment.getUserEmail()
+                    : callerEmail;
+            if (valid && emailForProgress != null) {
+                try {
+                    boolean exists = courseProgressRepo
+                            .findByUserEmailAndCourseId(
+                                    emailForProgress, payment.getCourseId())
+                            .isPresent();
+                    if (!exists) {
+                        CourseProgress cp = new CourseProgress();
+                        cp.setUserEmail(emailForProgress);
+                        cp.setCourseId(payment.getCourseId());
+                        cp.setCourseName(payment.getCourseName());
+                        cp.setStatus("REGISTERED");
+                        cp.setProgressPct(0);
+                        courseProgressRepo.save(cp);
+                    }
+                } catch (Exception e) {
+                    System.err.println("CourseProgress creation failed (non-fatal): " + e.getMessage());
+                }
+            }
         }
 
         return valid;

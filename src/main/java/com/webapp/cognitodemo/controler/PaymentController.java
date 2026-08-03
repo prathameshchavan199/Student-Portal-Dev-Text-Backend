@@ -81,12 +81,14 @@ public class PaymentController {
      */
     @PostMapping("/verify")
     public ResponseEntity<?> verifyPayment(
-            @Valid @RequestBody VerifyPaymentRequest request) {
+            @Valid @RequestBody VerifyPaymentRequest request,
+            Authentication authentication) {
 
         try {
 
+            String callerEmail = (authentication != null) ? authentication.getName() : null;
             boolean valid =
-                    paymentService.verifyPayment(request);
+                    paymentService.verifyPayment(request, callerEmail);
 
             if (!valid) {
 
