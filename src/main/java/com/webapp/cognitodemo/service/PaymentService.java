@@ -45,6 +45,11 @@ public class PaymentService {
         return keyId;
     }
 
+    public boolean isAlreadyPurchased(String email, String courseId) {
+        if (email == null || courseId == null) return false;
+        return paymentRepo.existsByUserEmailAndCourseIdAndStatus(email, courseId, "PAID");
+    }
+
     /*
      * Creates a Razorpay order for the exact course amount sent
      * from the frontend, persists a CREATED record, and returns

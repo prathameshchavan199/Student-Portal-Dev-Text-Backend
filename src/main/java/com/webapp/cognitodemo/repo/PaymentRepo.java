@@ -13,4 +13,6 @@ public interface PaymentRepo extends JpaRepository<Payment, Long> {
     Optional<Payment> findByRazorpayOrderId(String razorpayOrderId);
 
     List<Payment> findByUserEmailAndStatus(String userEmail, String status);
+
+    boolean existsByUserEmailAndCourseIdAndStatus(String userEmail, String courseId, String status);
 }

@@ -187,10 +187,14 @@ public class DashboardService {
     // ── Courses ───────────────────────────────────────────────────────────────
 
     private Map<String, Object> computeCourses(String email) {
-        List<Payment> paid    = paymentRepo.findByUserEmailAndStatus(email, "PAID");
-        Set<String>   paidIds = paid.stream().map(Payment::getCourseId).collect(Collectors.toSet());
+        // Deduplicate by courseId — multiple PAID records can exist for the same course
+        Map<String, Payment> uniquePaid = new LinkedHashMap<>();
+        for (Payment p : paymentRepo.findByUserEmailAndStatus(email, "PAID")) {
+            uniquePaid.putIfAbsent(p.getCourseId(), p);
+        }
+        Set<String> paidIds = uniquePaid.keySet();
 
-        List<Map<String, Object>> enrolled = paid.stream().map(p -> {
+        List<Map<String, Object>> enrolled = uniquePaid.values().stream().map(p -> {
             Optional<Course> c = courseRepo.findById(p.getCourseId());
             int pct = courseProgressRepo
                     .findByUserEmailAndCourseId(email, p.getCourseId())

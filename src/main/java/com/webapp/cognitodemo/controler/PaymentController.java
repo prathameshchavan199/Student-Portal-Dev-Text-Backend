@@ -23,6 +23,23 @@ public class PaymentController {
     private PaymentService paymentService;
 
     /*
+     * CHECK — returns whether the authenticated user has already paid for a course.
+     */
+    @GetMapping("/check/{courseId}")
+    public ResponseEntity<?> checkPurchased(
+            @PathVariable String courseId,
+            Authentication authentication) {
+        try {
+            String email = authentication != null ? authentication.getName() : null;
+            boolean purchased = paymentService.isAlreadyPurchased(email, courseId);
+            return ResponseEntity.ok(Map.of("success", true, "alreadyPurchased", purchased));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    /*
      * CREATE ORDER
      *
      * The frontend sends the amount of the selected course. A
