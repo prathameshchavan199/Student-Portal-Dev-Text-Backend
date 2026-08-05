@@ -88,4 +88,13 @@ public class CourseController {
             ));
         }
     }
+
+    @Operation(summary = "Get reviews for a course")
+    @GetMapping("/{id}/reviews")
+    public ResponseEntity<?> getReviews(@PathVariable String id) {
+        return ResponseEntity.ok(Map.of(
+                "success", true,
+                "data", courseService.getReviewsForCourse(id)
+        ));
+    }
 }

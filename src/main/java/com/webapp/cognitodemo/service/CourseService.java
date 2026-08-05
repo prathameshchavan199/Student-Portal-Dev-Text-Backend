@@ -4,7 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webapp.cognitodemo.entity.course.Course;
 import com.webapp.cognitodemo.entity.course.CourseRequest;
+import com.webapp.cognitodemo.entity.course.CourseReview;
 import com.webapp.cognitodemo.repo.CourseRepo;
+import com.webapp.cognitodemo.repo.CourseReviewRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,9 @@ public class CourseService {
 
     @Autowired
     private CourseRepo courseRepo;
+
+    @Autowired
+    private CourseReviewRepo courseReviewRepo;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -78,6 +83,21 @@ public class CourseService {
 
         courseRepo.save(existing);
         return toMap(existing);
+    }
+
+    public List<Map<String, Object>> getReviewsForCourse(String courseId) {
+        return courseReviewRepo.findByCourseIdOrderByCreatedAtDesc(courseId)
+                .stream()
+                .map(r -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", r.getId());
+                    m.put("reviewerName", r.getReviewerName());
+                    m.put("rating", r.getRating());
+                    m.put("reviewText", r.getReviewText());
+                    m.put("createdAt", r.getCreatedAt().toString());
+                    return m;
+                })
+                .collect(Collectors.toList());
     }
 
     public void deleteCourse(String id) {

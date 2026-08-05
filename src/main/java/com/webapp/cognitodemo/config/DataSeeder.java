@@ -2,6 +2,7 @@ package com.webapp.cognitodemo.config;
 
 import com.webapp.cognitodemo.entity.assessment.*;
 import com.webapp.cognitodemo.entity.course.Course;
+import com.webapp.cognitodemo.entity.course.CourseReview;
 import com.webapp.cognitodemo.repo.*;
 import com.webapp.cognitodemo.service.AssessmentService;
 import com.webapp.cognitodemo.service.CommunicationService;
@@ -16,6 +17,7 @@ import java.util.List;
 public class DataSeeder implements ApplicationRunner {
 
     @Autowired private CourseRepo courseRepo;
+    @Autowired private CourseReviewRepo courseReviewRepo;
     @Autowired private AssessmentCategoryRepo categoryRepo;
     @Autowired private AssessmentModuleRepo moduleRepo;
     @Autowired private AssessmentService assessmentService;
@@ -25,6 +27,7 @@ public class DataSeeder implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         seedCourses();
+        seedReviews();
         seedAssessments();
         seedTopics();
     }
@@ -169,6 +172,47 @@ public class DataSeeder implements ApplicationRunner {
         ));
 
         System.out.println("[DataSeeder] Seeded 6 courses.");
+    }
+
+    // ── Reviews ───────────────────────────────────────────────────────────────
+
+    private void seedReviews() {
+        if (courseReviewRepo.count() > 0) return;
+
+        courseReviewRepo.saveAll(List.of(
+                review("cloud-computing-masterclass", "Aman Verma",   5, "The sessions were clear, practical, and easy to follow. The Azure labs gave me real hands-on experience I could apply immediately at work."),
+                review("cloud-computing-masterclass", "Priya Nair",   4, "Great balance of theory and hands-on practice. The instructor explained serverless concepts in a very approachable way."),
+                review("cloud-computing-masterclass", "Rahul Mehta",  5, "Loved the structure of the course. The curriculum felt focused and the final capstone project was directly useful for my portfolio."),
+                review("cloud-computing-masterclass", "Sneha Kapoor", 4, "Excellent course for anyone looking to transition into cloud roles. The hybrid cloud module was especially insightful."),
+
+                review("cybersecurity-essentials", "Dev Sharma",     5, "Extremely practical coverage of network defense and identity management. The incident response simulations were the highlight."),
+                review("cybersecurity-essentials", "Anita Rajan",    4, "Good depth on risk reviews and compliance frameworks. Would love more advanced exploit analysis in future modules."),
+                review("cybersecurity-essentials", "Karan Patel",    5, "The instructor made complex security concepts digestible. Completed the course feeling genuinely prepared for real-world threats."),
+
+                review("react-essentials", "Meera Joshi",    5, "Perfect for beginners. The hooks and state management sections clicked immediately and I was building my own projects by week 2."),
+                review("react-essentials", "Arjun Nair",     4, "Very well structured. The component patterns taught here are clean and production-ready. Would recommend to anyone starting with React."),
+                review("react-essentials", "Tanvi Desai",    5, "Loved the progressive difficulty. Each module built naturally on the last, making the learning curve feel smooth rather than steep."),
+
+                review("advanced-react-patterns", "Vikram Iyer",   5, "This course elevated my React skills significantly. The render props and custom hook patterns are used daily in my work now."),
+                review("advanced-react-patterns", "Pooja Bhat",    4, "Deep dives into performance optimization were excellent. The memoization strategies saved us real seconds in our production app."),
+
+                review("data-science-bootcamp", "Suresh Menon",  5, "Two intense weeks that changed my career trajectory. The ML project we built in-person is now live in our company's analytics dashboard."),
+                review("data-science-bootcamp", "Ritu Gupta",    4, "The Bengaluru campus facilities were great and the instructor was highly knowledgeable. Loved the team-based project format."),
+
+                review("fullstack-lab", "Nikhil Rao",    5, "Nine days of building a real product end-to-end. Backend, database, frontend, and deployment — all covered with professional-grade guidance."),
+                review("fullstack-lab", "Divya Singh",   4, "Challenging but immensely rewarding. The Hyderabad campus environment and instructor mentorship made the hard days feel worthwhile.")
+        ));
+
+        System.out.println("[DataSeeder] Seeded course reviews.");
+    }
+
+    private CourseReview review(String courseId, String reviewer, int rating, String text) {
+        return CourseReview.builder()
+                .courseId(courseId)
+                .reviewerName(reviewer)
+                .rating(rating)
+                .reviewText(text)
+                .build();
     }
 
     // ── Assessments ───────────────────────────────────────────────────────────
