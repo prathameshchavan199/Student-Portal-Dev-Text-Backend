@@ -11,6 +11,10 @@ import com.webapp.cognitodemo.repo.CourseReviewRepo;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,9 @@ public class CourseService {
 
     @Autowired
     private CourseReviewRepo courseReviewRepo;
+
+    @Autowired
+    private S3Service s3Service;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -122,6 +129,27 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
+    public Map<String, Object> uploadCourseImage(String courseId, MultipartFile file) throws IOException {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+        String key = buildImageKey(course.getCategory(), courseId);
+        s3Service.upload(key, file);
+        course.setImageKey(key);
+        courseRepo.save(course);
+        return Map.of(
+                "imageKey", key,
+                "imageUrl", s3Service.presignedUrl(key, Duration.ofDays(7))
+        );
+    }
+
+    private String buildImageKey(String category, String courseId) {
+        return switch (category) {
+            case "onlineProgram"  -> "CourseDetails/Online/online-"     + courseId + ".png";
+            case "offlineProgram" -> "CourseDetails/Offline/offline-"   + courseId + ".png";
+            default               -> "CourseDetails/OnDemand/ondemand-" + courseId + ".png";
+        };
+    }
+
     public void deleteCourse(String id) {
         if (!courseRepo.existsById(id)) {
             throw new NoSuchElementException("Course not found: " + id);
@@ -174,7 +202,7 @@ public class CourseService {
         map.put("price",       c.getPrice());
         map.put("duration",    nvl(c.getDuration()));
         map.put("level",       nvl(c.getLevel()));
-        map.put("imageUrl",    nvl(c.getImageUrl()));
+        map.put("imageUrl", resolveImageUrl(c));
         map.put("instructor",  nvl(c.getInstructor()));
         map.put("description", nvl(c.getDescription()));
         map.put("courseArea",  nvl(c.getCourseArea()));
@@ -192,6 +220,17 @@ public class CourseService {
         map.put("youWillLearn",  parseJsonList(c.getYouWillLearnJson()));
         map.put("curriculum",    parseJsonList(c.getCurriculumJson()));
         return map;
+    }
+
+    private String resolveImageUrl(Course c) {
+        if (c.getImageKey() != null && !c.getImageKey().isBlank()) {
+            try {
+                return s3Service.presignedUrl(c.getImageKey(), Duration.ofDays(7));
+            } catch (Exception e) {
+                return nvl(c.getImageUrl());
+            }
+        }
+        return nvl(c.getImageUrl());
     }
 
     private String serializeJson(Object value) {

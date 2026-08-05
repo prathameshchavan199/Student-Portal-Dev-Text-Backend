@@ -66,4 +66,7 @@ public class Course {
     // JSON array: [{ "title": "Module 1", "lessons": ["Lesson A", "Lesson B"] }, ...]
     @Column(columnDefinition = "TEXT")
     private String curriculumJson;
+
+    // S3 key for the course banner image (e.g. CourseDetails/OnDemand/ondemand-react-essentials.png)
+    private String imageKey;
 }
