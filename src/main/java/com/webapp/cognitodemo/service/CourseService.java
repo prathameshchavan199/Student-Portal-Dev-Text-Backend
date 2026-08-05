@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webapp.cognitodemo.entity.course.Course;
 import com.webapp.cognitodemo.entity.course.CourseRequest;
 import com.webapp.cognitodemo.entity.course.CourseReview;
+import com.webapp.cognitodemo.entity.course.CourseReviewRequest;
 import com.webapp.cognitodemo.repo.CourseRepo;
 import com.webapp.cognitodemo.repo.CourseReviewRepo;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -83,6 +84,27 @@ public class CourseService {
 
         courseRepo.save(existing);
         return toMap(existing);
+    }
+
+    public Map<String, Object> createReview(String courseId, CourseReviewRequest req) {
+        if (!courseRepo.existsById(courseId)) {
+            throw new NoSuchElementException("Course not found: " + courseId);
+        }
+        CourseReview review = CourseReview.builder()
+                .courseId(courseId)
+                .reviewerName(req.getReviewerName())
+                .rating(req.getRating())
+                .reviewText(req.getReviewText())
+                .build();
+        CourseReview saved = courseReviewRepo.save(review);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", saved.getId());
+        m.put("courseId", saved.getCourseId());
+        m.put("reviewerName", saved.getReviewerName());
+        m.put("rating", saved.getRating());
+        m.put("reviewText", saved.getReviewText());
+        m.put("createdAt", saved.getCreatedAt().toString());
+        return m;
     }
 
     public List<Map<String, Object>> getReviewsForCourse(String courseId) {

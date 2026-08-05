@@ -1,6 +1,7 @@
 package com.webapp.cognitodemo.controler;
 
 import com.webapp.cognitodemo.entity.course.CourseRequest;
+import com.webapp.cognitodemo.entity.course.CourseReviewRequest;
 import com.webapp.cognitodemo.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -96,5 +97,23 @@ public class CourseController {
                 "success", true,
                 "data", courseService.getReviewsForCourse(id)
         ));
+    }
+
+    @Operation(summary = "Post a review for a course")
+    @PostMapping("/{id}/reviews")
+    public ResponseEntity<?> createReview(
+            @PathVariable String id,
+            @Valid @RequestBody CourseReviewRequest request) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
+                    "success", true,
+                    "data", courseService.createReview(id, request)
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
     }
 }
