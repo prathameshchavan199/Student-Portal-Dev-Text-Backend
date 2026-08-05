@@ -55,4 +55,15 @@ public class Course {
 
     @Column(columnDefinition = "TEXT")
     private String sessionsJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String aboutCourse;
+
+    // JSON array of strings: ["bullet 1", "bullet 2", ...]
+    @Column(columnDefinition = "TEXT")
+    private String youWillLearnJson;
+
+    // JSON array: [{ "title": "Module 1", "lessons": ["Lesson A", "Lesson B"] }, ...]
+    @Column(columnDefinition = "TEXT")
+    private String curriculumJson;
 }

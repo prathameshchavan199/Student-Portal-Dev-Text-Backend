@@ -40,4 +40,12 @@ public class CourseRequest {
 
     // Each session: { "id": "...", "title": "...", "date": "...", "time": "..." }
     private List<Map<String, String>> sessions;
+
+    private String aboutCourse;
+
+    // Bullet points for "You will learn"
+    private List<String> youWillLearn;
+
+    // Each module: { "title": "Module 1: ...", "lessons": ["Lesson name 1", "Lesson name 2"] }
+    private List<Map<String, Object>> curriculum;
 }

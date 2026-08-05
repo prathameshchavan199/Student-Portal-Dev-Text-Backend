@@ -72,6 +72,9 @@ public class CourseService {
         existing.setSeatsLeft(req.getSeatsLeft());
         existing.setAccent(req.getAccent());
         existing.setSessionsJson(serializeSessions(req));
+        existing.setAboutCourse(req.getAboutCourse());
+        existing.setYouWillLearnJson(serializeJson(req.getYouWillLearn()));
+        existing.setCurriculumJson(serializeJson(req.getCurriculum()));
 
         courseRepo.save(existing);
         return toMap(existing);
@@ -106,6 +109,9 @@ public class CourseService {
                 .seatsLeft(req.getSeatsLeft())
                 .accent(req.getAccent())
                 .sessionsJson(serializeSessions(req))
+                .aboutCourse(req.getAboutCourse())
+                .youWillLearnJson(serializeJson(req.getYouWillLearn()))
+                .curriculumJson(serializeJson(req.getCurriculum()))
                 .build();
     }
 
@@ -138,9 +144,21 @@ public class CourseService {
         map.put("location",    c.getLocation());
         map.put("startsIn",    nvl(c.getStartsIn()));
         map.put("seatsLeft",   c.getSeatsLeft());
-        map.put("accent",      nvl(c.getAccent()));
-        map.put("sessions",    parseSessions(c.getSessionsJson()));
+        map.put("accent",        nvl(c.getAccent()));
+        map.put("sessions",      parseSessions(c.getSessionsJson()));
+        map.put("aboutCourse",   nvl(c.getAboutCourse()));
+        map.put("youWillLearn",  parseJsonList(c.getYouWillLearnJson()));
+        map.put("curriculum",    parseJsonList(c.getCurriculumJson()));
         return map;
+    }
+
+    private String serializeJson(Object value) {
+        if (value == null) return null;
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private List<Object> parseSessions(String json) {
@@ -148,6 +166,15 @@ public class CourseService {
         try {
             List<Object> list = objectMapper.readValue(json, new TypeReference<>() {});
             return list.isEmpty() ? null : list;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private List<Object> parseJsonList(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Exception e) {
             return null;
         }
