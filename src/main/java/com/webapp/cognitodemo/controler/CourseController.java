@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -100,6 +101,22 @@ public class CourseController {
                 "success", true,
                 "data", courseService.getReviewsForCourse(id)
         ));
+    }
+
+    @Operation(summary = "Redirect to presigned S3 URL for course banner image")
+    @GetMapping("/{id}/image")
+    public ResponseEntity<?> getImage(@PathVariable String id) {
+        try {
+            String presignedUrl = courseService.getImagePresignedUrl(id);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, presignedUrl)
+                    .build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
     }
 
     @Operation(summary = "Upload a banner image for a course to S3")

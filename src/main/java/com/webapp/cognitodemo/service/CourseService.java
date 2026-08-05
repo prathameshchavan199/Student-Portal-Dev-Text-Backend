@@ -129,6 +129,15 @@ public class CourseService {
                 .collect(Collectors.toList());
     }
 
+    public String getImagePresignedUrl(String courseId) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+        if (course.getImageKey() == null || course.getImageKey().isBlank()) {
+            throw new NoSuchElementException("No S3 image found for course: " + courseId);
+        }
+        return s3Service.presignedUrl(course.getImageKey(), Duration.ofMinutes(15));
+    }
+
     public Map<String, Object> uploadCourseImage(String courseId, MultipartFile file) throws IOException {
         Course course = courseRepo.findById(courseId)
                 .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
@@ -136,10 +145,7 @@ public class CourseService {
         s3Service.upload(key, file);
         course.setImageKey(key);
         courseRepo.save(course);
-        return Map.of(
-                "imageKey", key,
-                "imageUrl", s3Service.presignedUrl(key, Duration.ofDays(7))
-        );
+        return Map.of("imageKey", key);
     }
 
     private String buildImageKey(String category, String courseId) {
@@ -202,7 +208,8 @@ public class CourseService {
         map.put("price",       c.getPrice());
         map.put("duration",    nvl(c.getDuration()));
         map.put("level",       nvl(c.getLevel()));
-        map.put("imageUrl", resolveImageUrl(c));
+        map.put("imageUrl",  nvl(c.getImageUrl()));
+        map.put("imageKey",  c.getImageKey() != null ? c.getImageKey() : "");
         map.put("instructor",  nvl(c.getInstructor()));
         map.put("description", nvl(c.getDescription()));
         map.put("courseArea",  nvl(c.getCourseArea()));
@@ -220,17 +227,6 @@ public class CourseService {
         map.put("youWillLearn",  parseJsonList(c.getYouWillLearnJson()));
         map.put("curriculum",    parseJsonList(c.getCurriculumJson()));
         return map;
-    }
-
-    private String resolveImageUrl(Course c) {
-        if (c.getImageKey() != null && !c.getImageKey().isBlank()) {
-            try {
-                return s3Service.presignedUrl(c.getImageKey(), Duration.ofDays(7));
-            } catch (Exception e) {
-                return nvl(c.getImageUrl());
-            }
-        }
-        return nvl(c.getImageUrl());
     }
 
     private String serializeJson(Object value) {
