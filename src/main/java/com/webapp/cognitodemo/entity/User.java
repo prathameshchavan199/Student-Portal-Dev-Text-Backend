@@ -26,6 +26,10 @@ public class User {
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean registration = false;
 
+    // How the account was created — "LOCAL" (email/password + OTP) or "GOOGLE"
+    @Column(nullable = false, columnDefinition = "varchar(20) default 'LOCAL'")
+    private String provider = "LOCAL";
+
     public User() {
     }
 

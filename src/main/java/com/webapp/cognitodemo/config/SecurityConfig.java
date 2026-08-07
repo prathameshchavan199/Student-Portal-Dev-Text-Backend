@@ -61,6 +61,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/users/signup",
                                 "/api/users/login",
+                                "/api/users/google-login",
                                 "/api/users/confirm",
                                 "/api/users/logout",
                                 "/api/users/verify-otp",

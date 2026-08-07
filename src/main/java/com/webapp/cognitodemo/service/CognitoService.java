@@ -82,9 +82,9 @@ public class CognitoService {
         String username = UUID.randomUUID().toString();
         System.out.println("[CognitoService.signup] username=" + username + " email=" + request.getEmail());
 
-        // signUp (not adminCreateUser) is required to register the email into
-        // Cognito's alias lookup table — adminCreateUser stores the email as
-        // an attribute only and the alias-based login never resolves it.
+        // This pool's Username attribute is a generic username with email
+        // set as an alias — signUp registers the email into that alias
+        // lookup table so alias-based login (USERNAME=email) resolves it.
         SignUpRequest signUpRequest =
                 SignUpRequest.builder()
                         .clientId(clientId)
@@ -134,6 +134,133 @@ public class CognitoService {
 
         cognitoClient.adminUpdateUserAttributes(verifyEmail);
         System.out.println("[CognitoService.signup] email_verified=true set");
+    }
+
+    /*
+     * SYNTHETIC PASSWORD FOR GOOGLE-AUTHENTICATED USERS
+     *
+     * Cognito's ADMIN_USER_PASSWORD_AUTH flow always needs a password, but a
+     * Google sign-in never provides one. Instead of storing a password
+     * anywhere, we derive one deterministically from the email so it can be
+     * recomputed identically on every future Google login for the same
+     * account. It is never shown to or usable-knowledge of the user.
+     */
+    private String generateGooglePassword(String email) {
+
+        try {
+
+            String data = "google-oauth:" + email;
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+
+            mac.init(new SecretKeySpec(clientSecret.getBytes(), "HmacSHA256"));
+
+            byte[] rawHmac = mac.doFinal(data.getBytes());
+
+            String encoded = Base64.getUrlEncoder()
+                    .withoutPadding()
+                    .encodeToString(rawHmac);
+
+            // Prefix guarantees upper/lower/digit/symbol regardless of what
+            // the base64 alphabet happens to produce, satisfying Cognito's
+            // default password policy.
+            return "Gx1!" + encoded.substring(0, 20);
+
+        } catch (Exception e) {
+
+            throw new RuntimeException(
+                    "Error while generating Google password",
+                    e
+            );
+        }
+    }
+
+    /*
+     * SIGNUP (GOOGLE)
+     *
+     * Same shape as signup(), but the password is the deterministic
+     * synthetic one above instead of anything the user chose.
+     */
+    public void signupGoogleUser(String email, String name) {
+
+        // This pool's Username attribute is a generic username with email
+        // set as an alias — same shape as signup() above.
+        String username = UUID.randomUUID().toString();
+
+        SignUpRequest signUpRequest =
+                SignUpRequest.builder()
+                        .clientId(clientId)
+                        .secretHash(calculateSecretHash(username))
+                        .username(username)
+                        .password(generateGooglePassword(email))
+                        .userAttributes(
+
+                                AttributeType.builder()
+                                        .name("email")
+                                        .value(email)
+                                        .build(),
+
+                                AttributeType.builder()
+                                        .name("name")
+                                        .value(name != null && !name.isBlank() ? name : email)
+                                        .build()
+
+                        )
+                        .build();
+
+        cognitoClient.signUp(signUpRequest);
+
+        AdminConfirmSignUpRequest confirmRequest =
+                AdminConfirmSignUpRequest.builder()
+                        .userPoolId(userPoolID)
+                        .username(username)
+                        .build();
+
+        cognitoClient.adminConfirmSignUp(confirmRequest);
+
+        AdminUpdateUserAttributesRequest verifyEmail =
+                AdminUpdateUserAttributesRequest.builder()
+                        .userPoolId(userPoolID)
+                        .username(username)
+                        .userAttributes(
+                                AttributeType.builder()
+                                        .name("email_verified")
+                                        .value("true")
+                                        .build()
+                        )
+                        .build();
+
+        cognitoClient.adminUpdateUserAttributes(verifyEmail);
+    }
+
+    /*
+     * LOGIN (GOOGLE)
+     *
+     * Exchanges the same deterministic password for real Cognito tokens via
+     * the existing ADMIN_USER_PASSWORD_AUTH flow.
+     */
+    public AuthenticationResultType loginGoogleUser(String email) {
+
+        LoginRequest request = new LoginRequest();
+        request.setEmail(email);
+        request.setPassword(generateGooglePassword(email));
+
+        return login(request);
+    }
+
+    /*
+     * Cognito is the actual system of record for account existence — our
+     * Postgres table can go stale (e.g. after pointing the app at a
+     * different User Pool during testing) and must not be trusted for this.
+     */
+    public boolean cognitoUserExists(String email) {
+
+        try {
+            getCognitoUsernameByEmail(email);
+            return true;
+        } catch (RuntimeException e) {
+            return false;
+        }
     }
 
     private String getCognitoUsernameByEmail(String email) {

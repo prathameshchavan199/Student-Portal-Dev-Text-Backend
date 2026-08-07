@@ -1,9 +1,12 @@
 package com.webapp.cognitodemo.controler;
 
+import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
+
 import com.webapp.cognitodemo.entity.*;
 import com.webapp.cognitodemo.entity.OTP.VerifyOtpRequest;
 import com.webapp.cognitodemo.service.CognitoService;
 import com.webapp.cognitodemo.service.EmailService;
+import com.webapp.cognitodemo.service.GoogleAuthService;
 import com.webapp.cognitodemo.service.OtpService;
 import com.webapp.cognitodemo.service.UserService;
 
@@ -39,6 +42,8 @@ public class UserController {
     private OtpService otpService;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private GoogleAuthService googleAuthService;
 
     /*
      * SIGNUP — step 1: send OTP only, nothing written to Cognito or DB yet.
@@ -113,6 +118,63 @@ public class UserController {
                 userService.loginUser(
                         request
                 );
+
+        return withAuthCookies(response, authResult);
+    }
+
+    /*
+     * GOOGLE SIGN-IN
+     *
+     * Frontend obtains a Google ID token via Google Identity Services and
+     * posts it here. We verify it against Google, create the Cognito +
+     * local-DB user on first sign-in only, then exchange the account's
+     * synthetic password for real Cognito tokens — same cookies as /login.
+     */
+    @Operation(summary = "Google Sign-In — verifies a Google ID token, auto-registers on first login, and returns the same session cookies as /login")
+    @PostMapping("/google-login")
+    public ResponseEntity<?> googleLogin(
+            @RequestBody GoogleLoginRequest request) {
+
+        try {
+
+            GoogleIdToken.Payload payload =
+                    googleAuthService.verify(request.getIdToken());
+
+            String email = payload.getEmail();
+            String name = (String) payload.get("name");
+
+            if (!userService.cognitoUserExists(email)) {
+                userService.signupGoogleUser(email, name);
+            }
+
+            AuthenticationResultType authResult =
+                    userService.loginGoogleUser(email);
+
+            LoginResponse response =
+                    userService.buildLoginResponse(email);
+
+            return withAuthCookies(response, authResult);
+
+        } catch (Exception e) {
+
+            System.out.println("[google-login] FAILED: " + e.getMessage());
+            e.printStackTrace();
+
+            return ResponseEntity.status(401)
+                    .body(Map.of(
+                            "success", false,
+                            "message", e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()
+                    ));
+        }
+    }
+
+    /*
+     * Shared cookie-setting for both /login and /google-login — they issue
+     * identical Cognito-backed sessions once tokens exist.
+     */
+    private ResponseEntity<LoginResponse> withAuthCookies(
+            LoginResponse response,
+            AuthenticationResultType authResult) {
 
         response.setIdToken(authResult.idToken());
         response.setRefreshToken(authResult.refreshToken());

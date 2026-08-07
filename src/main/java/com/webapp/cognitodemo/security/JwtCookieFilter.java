@@ -35,6 +35,7 @@ public class JwtCookieFilter extends OncePerRequestFilter {
                 || requestPath.startsWith("/swagger-ui")
                 || requestPath.startsWith("/v3/api-docs")
                 || requestPath.equals("/api/users/login")
+                || requestPath.equals("/api/users/google-login")
                 || requestPath.equals("/api/users/refresh")
                 || requestPath.equals("/api/users/signup")
                 || requestPath.equals("/api/users/confirm")

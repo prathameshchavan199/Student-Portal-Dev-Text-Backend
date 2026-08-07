@@ -33,6 +33,7 @@ public class UserService {
 
         user.setFullName(request.getName());
         user.setEmail(request.getEmail());
+        user.setProvider("LOCAL");
 
         userRepo.save(user);
 
@@ -67,6 +68,7 @@ public class UserService {
         response.setId(user.getId());
         response.setName(user.getFullName());
         response.setRegistered(user.isRegistration());
+        response.setProvider(user.getProvider());
 
         return response;
     }
@@ -76,7 +78,56 @@ public class UserService {
 
         return cognitoService.login(request);
     }
-    
+
+    // GOOGLE SIGN-IN — create the account on first login only
+    public void signupGoogleUser(String email, String name) {
+
+        cognitoService.signupGoogleUser(email, name);
+
+        // A Postgres row can already exist here (e.g. left over from testing
+        // against a different Cognito User Pool) — don't fail on that.
+        if (!userExists(email)) {
+            User user = new User();
+            user.setFullName(name != null && !name.isBlank() ? name : email);
+            user.setEmail(email);
+            user.setProvider("GOOGLE");
+
+            userRepo.save(user);
+        }
+    }
+
+    // Whether the Cognito account exists in the *currently configured* pool
+    public boolean cognitoUserExists(String email) {
+
+        return cognitoService.cognitoUserExists(email);
+    }
+
+    public AuthenticationResultType loginGoogleUser(String email) {
+
+        return cognitoService.loginGoogleUser(email);
+    }
+
+    public LoginResponse buildLoginResponse(String email) {
+
+        User user = userRepo.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException(
+                                "User not found"
+                        )
+                );
+
+        LoginResponse response = new LoginResponse();
+
+        response.setEmail(user.getEmail());
+        response.setId(user.getId());
+        response.setName(user.getFullName());
+        response.setRegistered(user.isRegistration());
+        response.setProvider(user.getProvider());
+
+        return response;
+    }
+
+
     // CONFIRM USER
     public String confirmUser(
             ConfirmRequest request) {
