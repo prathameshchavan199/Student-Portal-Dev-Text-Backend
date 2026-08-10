@@ -28,11 +28,12 @@ public class OpenApiConfig {
                                 (Bearer token). All secured endpoints require this token.
                                 """)
                         .version("1.0.0")
-                        .contact(new Contact()
-                                .name("Student Portal Team")
-                                .email("cprathamesh199@gmail.com")))
+//                        .contact(new Contact()
+//                                .name("Student Portal Team")
+//                                .email("cprathamesh199@gmail.com"))
+                )
                 .servers(List.of(
-                        new Server().url("https://api.cyfenix.com").description("Devlopment Server")))
+                        new Server().url("https://api.cyfenix.com").description("Server")))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth", new SecurityScheme()

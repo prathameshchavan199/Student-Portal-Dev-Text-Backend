@@ -1,0 +1,17 @@
+[33mcommit bcb63986667a7613923441357954b2e727a8370a[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: pratham <cprathamesh199@gmail.com>
+Date:   Mon Aug 10 16:01:28 2026 +0530
+
+    CiCd Check
+
+ .../webapp/cognitodemo/config/SecurityConfig.java  |  15 [32m+[m[31m-[m
+ .../cognitodemo/controler/UserController.java      | 131 [32m++++++++++++[m[31m-----[m
+ .../java/com/webapp/cognitodemo/entity/User.java   |  78 [32m+[m[31m---------[m
+ .../cognitodemo/security/JwtCookieFilter.java      |  28 [32m++[m[31m--[m
+ .../webapp/cognitodemo/service/CognitoService.java | 153 [32m+++++++++++++++++++[m
+ .../webapp/cognitodemo/service/EmailService.java   | 162 [32m++++++++[m[31m-------------[m
+ .../webapp/cognitodemo/service/UserService.java    |  42 [32m++++++[m
+ src/main/resources/application-dev.properties      |   8 [32m+[m
+ src/main/resources/application-prod.properties     | 105 [32m+++++++++++++[m
+ src/main/resources/templates/otp-email.html        | 108 [32m++++++++++++++[m
+ 10 files changed, 610 insertions(+), 220 deletions(-)
