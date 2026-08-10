@@ -11,9 +11,16 @@ import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityPr
 
 import software.amazon.awssdk.services.cognitoidentityprovider.model.*;
 
+import org.springframework.http.*;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestTemplate;
+
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -33,6 +40,15 @@ public class CognitoService {
 
     @Value("${aws.cognito.userPoolId}")
     private String userPoolID;
+
+    @Value("${aws.cognito.domain}")
+    private String cognitoDomain;
+
+    @Value("${google.oauth2.client-id}")
+    private String googleClientId;
+
+    @Value("${google.oauth2.client-secret}")
+    private String googleClientSecret;
 
     /*
      * GENERATE SECRET HASH
@@ -288,5 +304,142 @@ public class CognitoService {
                         .build();
 
         cognitoClient.adminSetUserPassword(request);
+    }
+
+    /*
+     * GOOGLE OAUTH2 — exchange authorization code for tokens
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, String> exchangeCodeForTokens(String code, String redirectUri) {
+
+        String tokenEndpoint = cognitoDomain + "/oauth2/token";
+
+        String credentials = clientId + ":" + clientSecret;
+        String encodedCredentials = Base64.getEncoder()
+                .encodeToString(credentials.getBytes(StandardCharsets.UTF_8));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        headers.set("Authorization", "Basic " + encodedCredentials);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "authorization_code");
+        body.add("client_id", clientId);
+        body.add("code", code);
+        body.add("redirect_uri", redirectUri);
+
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
+
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<Map> response = restTemplate.postForEntity(tokenEndpoint, requestEntity, Map.class);
+
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody == null) {
+            throw new RuntimeException("Empty response from Cognito token endpoint");
+        }
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("access_token", (String) responseBody.get("access_token"));
+        tokens.put("id_token",     (String) responseBody.get("id_token"));
+        tokens.put("refresh_token", (String) responseBody.getOrDefault("refresh_token", ""));
+
+        return tokens;
+    }
+
+    /*
+     * Build the Cognito Hosted UI URL for Google federated sign-in
+     */
+    public String getGoogleAuthUrl(String redirectUri) {
+
+        String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
+
+        return cognitoDomain + "/oauth2/authorize"
+                + "?response_type=code"
+                + "&client_id=" + clientId
+                + "&redirect_uri=" + encodedRedirectUri
+                + "&identity_provider=Google"
+                + "&scope=email+openid+profile";
+    }
+
+    /*
+     * DIRECT GOOGLE OAUTH2 — exchange authorization code with Google's token endpoint
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, String> exchangeGoogleCodeForTokens(String code, String redirectUri) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("code", code);
+        body.add("client_id", googleClientId);
+        body.add("client_secret", googleClientSecret);
+        body.add("redirect_uri", redirectUri);
+        body.add("grant_type", "authorization_code");
+
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
+        RestTemplate restTemplate = new RestTemplate();
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "https://oauth2.googleapis.com/token", requestEntity, Map.class);
+
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody == null) throw new RuntimeException("Empty response from Google token endpoint");
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("access_token", (String) responseBody.get("access_token"));
+        tokens.put("id_token",     (String) responseBody.get("id_token"));
+        tokens.put("refresh_token", (String) responseBody.getOrDefault("refresh_token", ""));
+        return tokens;
+    }
+
+    /*
+     * Verify Google id_token via Google's tokeninfo endpoint and return its claims.
+     * Also validates that the token's audience matches our Google client ID.
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> verifyGoogleIdToken(String idToken) {
+
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<Map> response = restTemplate.getForEntity(
+                "https://oauth2.googleapis.com/tokeninfo?id_token=" + idToken, Map.class);
+
+        Map<String, Object> claims = response.getBody();
+        if (claims == null) throw new RuntimeException("Could not verify Google id_token");
+
+        String aud = (String) claims.get("aud");
+        if (!googleClientId.equals(aud)) throw new RuntimeException("Google token audience mismatch");
+
+        return claims;
+    }
+
+    /*
+     * DIRECT GOOGLE REFRESH — exchange Google refresh_token for new access + id tokens
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, String> refreshGoogleTokens(String refreshToken) {
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("refresh_token", refreshToken);
+        body.add("client_id", googleClientId);
+        body.add("client_secret", googleClientSecret);
+        body.add("grant_type", "refresh_token");
+
+        HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
+        RestTemplate restTemplate = new RestTemplate();
+
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "https://oauth2.googleapis.com/token", requestEntity, Map.class);
+
+        Map<String, Object> responseBody = response.getBody();
+        if (responseBody == null) throw new RuntimeException("Empty response from Google refresh endpoint");
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("access_token", (String) responseBody.get("access_token"));
+        tokens.put("id_token",     (String) responseBody.get("id_token"));
+        return tokens;
     }
 }

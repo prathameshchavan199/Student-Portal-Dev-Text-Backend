@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,9 @@ import java.util.Optional;
 @RequestMapping("/api/users")
 
 public class UserController {
+
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
 
     @Autowired
     private UserService userService;
@@ -65,7 +69,7 @@ public class UserController {
         String otp = otpService.generateOtp(request.getEmail());
 
         try {
-            emailService.sendOtpEmail(request.getEmail(), otp);
+            emailService.sendOtpEmail(request.getEmail(), otp, request.getName());
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError()
@@ -118,40 +122,19 @@ public class UserController {
         response.setRefreshToken(authResult.refreshToken());
 
         ResponseCookie accessTokenCookie =
-                ResponseCookie.from(
-                                "accessToken",
-                                authResult.accessToken()
-                        )
-                        .httpOnly(true)
-                        .secure(false)
-                        .sameSite("Lax")
-                        .path("/")
-                        .maxAge(3600)
-                        .build();
+                ResponseCookie.from("accessToken", authResult.accessToken())
+                        .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                        .path("/").maxAge(3600).build();
 
         ResponseCookie idTokenCookie =
-                ResponseCookie.from(
-                                "idToken",
-                                authResult.idToken()
-                        )
-                        .httpOnly(true)
-                        .secure(true)
-                        .sameSite("None")
-                        .path("/")
-                        .maxAge(3600)
-                        .build();
+                ResponseCookie.from("idToken", authResult.idToken())
+                        .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                        .path("/").maxAge(3600).build();
 
         ResponseCookie refreshTokenCookie =
-                ResponseCookie.from(
-                                "refreshToken",
-                                authResult.refreshToken()
-                        )
-                        .httpOnly(true)
-                        .secure(true)
-                        .sameSite("none")
-                        .path("/")
-                        .maxAge(86400)
-                        .build();
+                ResponseCookie.from("refreshToken", authResult.refreshToken())
+                        .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                        .path("/").maxAge(86400).build();
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
@@ -184,6 +167,35 @@ public class UserController {
                     .body(Map.of("success", false, "message", "No refresh token"));
         }
 
+        String provider = body.getOrDefault("provider", "LOCAL");
+
+        // Google users refresh directly against Google's token endpoint
+        if ("GOOGLE".equalsIgnoreCase(provider)) {
+            try {
+                Map<String, String> newTokens = cognitoService.refreshGoogleTokens(refreshToken);
+
+                ResponseCookie accessTokenCookie =
+                        ResponseCookie.from("accessToken", newTokens.get("access_token"))
+                                .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                                .path("/").maxAge(3600).build();
+
+                ResponseCookie idTokenCookie =
+                        ResponseCookie.from("idToken", newTokens.get("id_token"))
+                                .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                                .path("/").maxAge(3600).build();
+
+                return ResponseEntity.ok()
+                        .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
+                        .header(HttpHeaders.SET_COOKIE, idTokenCookie.toString())
+                        .body(Map.of("success", true, "idToken", newTokens.get("id_token")));
+
+            } catch (Exception e) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("success", false, "message", "Google token refresh failed — please log in again"));
+            }
+        }
+
+        // Cognito users (LOCAL)
         String email = body.get("email");
         if (email == null || email.isBlank()) {
             return ResponseEntity.badRequest()
@@ -196,12 +208,12 @@ public class UserController {
 
             ResponseCookie accessTokenCookie =
                     ResponseCookie.from("accessToken", authResult.accessToken())
-                            .httpOnly(true).secure(false).sameSite("Lax")
+                            .httpOnly(true).secure(cookieSecure).sameSite("Lax")
                             .path("/").maxAge(3600).build();
 
             ResponseCookie idTokenCookie =
                     ResponseCookie.from("idToken", authResult.idToken())
-                            .httpOnly(true).secure(false).sameSite("Lax")
+                            .httpOnly(true).secure(cookieSecure).sameSite("Lax")
                             .path("/").maxAge(3600).build();
 
             return ResponseEntity.ok()
@@ -266,11 +278,8 @@ public ResponseEntity<?> verifyOtp(
 
     if (pendingSignup != null) {
         try {
-            System.out.println("[verify-otp] Calling signupUser for: " + request.getEmail());
             userService.signupUser(pendingSignup);
-            System.out.println("[verify-otp] signupUser completed successfully");
         } catch (Exception e) {
-            System.out.println("[verify-otp] signupUser FAILED: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.internalServerError()
                     .body(Map.of(
@@ -420,6 +429,56 @@ public ResponseEntity<?> verifyOtp(
                         "Password reset successfully"
                 )
         );
+    }
+
+    /*
+     * GOOGLE AUTH URL — returns the Cognito Hosted UI URL for Google sign-in
+     */
+    @GetMapping("/google-auth-url")
+    public ResponseEntity<?> getGoogleAuthUrl(@RequestParam String redirectUri) {
+
+        String url = cognitoService.getGoogleAuthUrl(redirectUri);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    /*
+     * GOOGLE CALLBACK — exchanges OAuth2 code for tokens, finds/creates user, sets cookies
+     */
+    @PostMapping("/google-callback")
+    public ResponseEntity<LoginResponse> googleCallback(
+            @RequestBody Map<String, String> body) {
+
+        String code = body.get("code");
+        String redirectUri = body.get("redirectUri");
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> result = userService.handleGoogleLogin(code, redirectUri);
+
+        LoginResponse loginResponse = (LoginResponse) result.get("loginResponse");
+        String accessToken  = (String) result.get("accessToken");
+        String idToken      = (String) result.get("idToken");
+        String refreshToken = (String) result.getOrDefault("refreshToken", "");
+
+        ResponseCookie accessTokenCookie =
+                ResponseCookie.from("accessToken", accessToken)
+                        .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                        .path("/").maxAge(3600).build();
+
+        ResponseCookie idTokenCookie =
+                ResponseCookie.from("idToken", idToken)
+                        .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                        .path("/").maxAge(3600).build();
+
+        ResponseCookie refreshTokenCookie =
+                ResponseCookie.from("refreshToken", refreshToken)
+                        .httpOnly(true).secure(cookieSecure).sameSite("Lax")
+                        .path("/").maxAge(86400).build();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, accessTokenCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, idTokenCookie.toString())
+                .header(HttpHeaders.SET_COOKIE, refreshTokenCookie.toString())
+                .body(loginResponse);
     }
 
     /*

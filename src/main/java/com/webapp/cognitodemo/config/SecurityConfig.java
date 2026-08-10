@@ -15,6 +15,8 @@ import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 
@@ -66,7 +68,9 @@ public class SecurityConfig {
                                 "/api/users/verify-otp",
                                 "/api/users/forgot-password",
                                 "/api/users/reset-password",
-                                "/api/users/refresh"
+                                "/api/users/refresh",
+                                "/api/users/google-auth-url",
+                                "/api/users/google-callback"
                         ).permitAll()
                         .requestMatchers("/api/registration/file/**").authenticated()
                         .anyRequest().authenticated()
@@ -158,6 +162,7 @@ public class SecurityConfig {
     }
 
 
+    @Primary
     @Bean
     public JwtDecoder jwtDecoder() {
 
@@ -175,5 +180,13 @@ public class SecurityConfig {
                         + "/.well-known/jwks.json";
 
         return NimbusJwtDecoder.withJwkSetUri(jwksUri).build();
+    }
+
+    @Bean
+    @Qualifier("googleJwtDecoder")
+    public JwtDecoder googleJwtDecoder() {
+        return NimbusJwtDecoder
+                .withJwkSetUri("https://www.googleapis.com/oauth2/v3/certs")
+                .build();
     }
 }

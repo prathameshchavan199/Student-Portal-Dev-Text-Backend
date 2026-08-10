@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>Your verification code</title>
+</head>
+<body style="margin:0; padding:0; background-color:#F1F4F9; -webkit-text-size-adjust:100%; -ms-text-size-adjust:100%;">
+
+  <!-- Hidden preview text shown next to subject line in inbox -->
+  <div style="display:none; max-height:0; overflow:hidden; font-size:1px; line-height:1px; color:#F1F4F9;">
+    Your Cyfenix verification code is {{otpCode}} — it expires in {{expiryMinutes}} minutes.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F1F4F9;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="width:480px; max-width:480px; background-color:#FFFFFF; border-radius:14px; overflow:hidden; border:1px solid #E3E9F3;">
+
+          <!-- Header / logo -->
+          <tr>
+            <td align="center" style="padding:26px 24px 18px; background-color:#FFFFFF; border-bottom:1px solid #E3E9F3;">
+              <img
+                src="{{logoUrl}}"
+                width="150"
+                height="79"
+                alt="Cyfenix Innovative Solutions"
+                style="display:block; width:150px; max-width:150px; height:auto; margin:0 auto;"
+              >
+              <span style="display:block; margin-top:8px; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif; font-size:11px; font-weight:600; letter-spacing:2px; color:#FF6B00; text-transform:uppercase;">Student Portal</span>
+            </td>
+          </tr>
+
+          <!-- Body -->
+          <tr>
+            <td style="padding:32px 32px 8px; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0 0 4px; font-size:15px; line-height:1.5; color:#223354;">Hi {{name}},</p>
+              <h1 style="margin:0 0 12px; font-size:20px; line-height:1.35; color:#223354; font-weight:700;">Verify your email address</h1>
+              <p style="margin:0 0 24px; font-size:14px; line-height:1.6; color:#6B7280;">
+                Enter this code to finish setting up your account. It's only valid for the next
+                <strong style="color:#223354;">{{expiryMinutes}} minutes</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- OTP digit boxes -->
+          <tr>
+            <td align="center" style="padding:0 32px 8px;">
+              <table role="presentation" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width:44px; height:52px; background-color:#FFF4EC; border:1.5px solid #FFD9BD; border-radius:8px; font-family:Consolas,Menlo,monospace; font-size:22px; font-weight:800; color:#FF6B00; text-align:center; vertical-align:middle;">{{otpDigit1}}</td>
+                  <td style="width:8px;">&nbsp;</td>
+                  <td style="width:44px; height:52px; background-color:#FFF4EC; border:1.5px solid #FFD9BD; border-radius:8px; font-family:Consolas,Menlo,monospace; font-size:22px; font-weight:800; color:#FF6B00; text-align:center; vertical-align:middle;">{{otpDigit2}}</td>
+                  <td style="width:8px;">&nbsp;</td>
+                  <td style="width:44px; height:52px; background-color:#FFF4EC; border:1.5px solid #FFD9BD; border-radius:8px; font-family:Consolas,Menlo,monospace; font-size:22px; font-weight:800; color:#FF6B00; text-align:center; vertical-align:middle;">{{otpDigit3}}</td>
+                  <td style="width:8px;">&nbsp;</td>
+                  <td style="width:44px; height:52px; background-color:#FFF4EC; border:1.5px solid #FFD9BD; border-radius:8px; font-family:Consolas,Menlo,monospace; font-size:22px; font-weight:800; color:#FF6B00; text-align:center; vertical-align:middle;">{{otpDigit4}}</td>
+                  <td style="width:8px;">&nbsp;</td>
+                  <td style="width:44px; height:52px; background-color:#FFF4EC; border:1.5px solid #FFD9BD; border-radius:8px; font-family:Consolas,Menlo,monospace; font-size:22px; font-weight:800; color:#FF6B00; text-align:center; vertical-align:middle;">{{otpDigit5}}</td>
+                  <td style="width:8px;">&nbsp;</td>
+                  <td style="width:44px; height:52px; background-color:#FFF4EC; border:1.5px solid #FFD9BD; border-radius:8px; font-family:Consolas,Menlo,monospace; font-size:22px; font-weight:800; color:#FF6B00; text-align:center; vertical-align:middle;">{{otpDigit6}}</td>
+                </tr>
+              </table>
+              <p style="margin:14px 0 0; font-size:12px; color:#9AA5B8; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+                Or copy the full code: <strong style="color:#223354; letter-spacing:1px;">{{otpCode}}</strong>
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding:28px 32px 0;">
+              <div style="border-top:1px solid #E3E9F3;"></div>
+            </td>
+          </tr>
+
+          <!-- Security note -->
+          <tr>
+            <td style="padding:20px 32px 4px; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0; font-size:12.5px; line-height:1.6; color:#9AA5B8;">
+                Didn't request this code? You can safely ignore this email — your account is still secure and no changes will be made.
+                Never share this code with anyone, including anyone claiming to be from Cyfenix support.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td align="center" style="padding:24px 32px 28px; font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0 0 6px; font-size:12px; color:#9AA5B8;">
+                Need help? <a href="mailto:{{supportEmail}}" style="color:#FF6B00; text-decoration:none; font-weight:600;">{{supportEmail}}</a>
+              </p>
+              <p style="margin:0; font-size:11px; color:#C2CADA;">
+                &copy; {{year}} Cyfenix Student Portal. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

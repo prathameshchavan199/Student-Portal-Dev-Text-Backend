@@ -6,6 +6,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -21,9 +22,13 @@ import java.util.Collections;
 public class JwtCookieFilter extends OncePerRequestFilter {
 
     private final JwtDecoder jwtDecoder;
+    private final JwtDecoder googleJwtDecoder;
 
-    public JwtCookieFilter(JwtDecoder jwtDecoder) {
+    public JwtCookieFilter(
+            JwtDecoder jwtDecoder,
+            @Qualifier("googleJwtDecoder") JwtDecoder googleJwtDecoder) {
         this.jwtDecoder = jwtDecoder;
+        this.googleJwtDecoder = googleJwtDecoder;
     }
 
     @Override
@@ -41,7 +46,9 @@ public class JwtCookieFilter extends OncePerRequestFilter {
                 || requestPath.equals("/api/users/logout")
                 || requestPath.equals("/api/users/verify-otp")
                 || requestPath.equals("/api/users/forgot-password")
-                || requestPath.equals("/api/users/reset-password");
+                || requestPath.equals("/api/users/reset-password")
+                || requestPath.equals("/api/users/google-auth-url")
+                || requestPath.equals("/api/users/google-callback");
     }
 
     @Override
@@ -98,14 +105,17 @@ public class JwtCookieFilter extends OncePerRequestFilter {
         try {
 
             /*
-             * VALIDATE JWT USING COGNITO JWKS
+             * Try Cognito JWKS first; fall back to Google JWKS for users who
+             * signed in via the direct Google OAuth flow.
              */
-            Jwt jwt =
-                    jwtDecoder.decode(
-                            accessToken
-                    );
-
-            String email = jwt.getClaimAsString("email");
+            String email = null;
+            try {
+                Jwt jwt = jwtDecoder.decode(accessToken);
+                email = jwt.getClaimAsString("email");
+            } catch (JwtException ignored) {
+                Jwt jwt = googleJwtDecoder.decode(accessToken);
+                email = jwt.getClaimAsString("email");
+            }
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(

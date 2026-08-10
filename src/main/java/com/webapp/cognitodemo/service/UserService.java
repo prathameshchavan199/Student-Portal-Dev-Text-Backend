@@ -9,7 +9,9 @@ import org.springframework.stereotype.Service;
 
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthenticationResultType;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -33,6 +35,7 @@ public class UserService {
 
         user.setFullName(request.getName());
         user.setEmail(request.getEmail());
+        user.setProvider("LOCAL");
 
         userRepo.save(user);
 
@@ -112,6 +115,45 @@ public class UserService {
                         new RuntimeException(
                                 "User not found"
                         ));
+    }
+
+    // GOOGLE LOGIN — exchange OAuth2 code directly with Google, find/create user
+    public Map<String, Object> handleGoogleLogin(String code, String redirectUri) {
+
+        Map<String, String> tokens = cognitoService.exchangeGoogleCodeForTokens(code, redirectUri);
+        String idTokenStr = tokens.get("id_token");
+
+        Map<String, Object> claims = cognitoService.verifyGoogleIdToken(idTokenStr);
+        String email = (String) claims.get("email");
+        String name  = (String) claims.get("name");
+        if (name == null || name.isBlank()) {
+            name = email.split("@")[0];
+        }
+
+        final String resolvedName = name;
+        User user = userRepo.findByEmail(email).orElseGet(() -> {
+            User newUser = new User();
+            newUser.setFullName(resolvedName);
+            newUser.setEmail(email);
+            newUser.setProvider("GOOGLE");
+            return userRepo.save(newUser);
+        });
+
+        LoginResponse response = new LoginResponse();
+        response.setEmail(user.getEmail());
+        response.setId(user.getId());
+        response.setName(user.getFullName());
+        response.setRegistered(user.isRegistration());
+        response.setIdToken(idTokenStr);
+        response.setRefreshToken(tokens.get("refresh_token"));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("loginResponse", response);
+        result.put("accessToken", tokens.get("access_token"));
+        result.put("idToken", idTokenStr);
+        result.put("refreshToken", tokens.get("refresh_token"));
+
+        return result;
     }
 
     // CHECK IF USER EXISTS (used by forgot-password)
