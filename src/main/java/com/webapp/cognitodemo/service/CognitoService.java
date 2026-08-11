@@ -374,8 +374,11 @@ public class CognitoService {
         body.add("code", code);
         body.add("client_id", googleClientId);
         body.add("client_secret", googleClientSecret);
-        body.add("redirect_uri", redirectUri);
         body.add("grant_type", "authorization_code");
+        // redirect_uri is required for web but must be omitted for Android server auth codes
+        if (redirectUri != null && !redirectUri.isBlank()) {
+            body.add("redirect_uri", redirectUri);
+        }
 
         HttpEntity<MultiValueMap<String, String>> requestEntity = new HttpEntity<>(body, headers);
         RestTemplate restTemplate = new RestTemplate();
