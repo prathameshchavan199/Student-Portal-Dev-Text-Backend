@@ -33,7 +33,7 @@ public class DashboardService {
         result.put("assessment",   computeAssessment(email));
         result.put("enrollment",   computeEnrollment(email));
         result.put("courses",      computeCourses(email));
-        result.put("sessions",     computeSessions());
+        result.put("sessions",     computeSessions(email));
         return result;
     }
 
@@ -230,10 +230,18 @@ public class DashboardService {
 
     // ── Sessions ──────────────────────────────────────────────────────────────
 
-    private Map<String, Object> computeSessions() {
+    private Map<String, Object> computeSessions(String email) {
+        // Collect unique paid course IDs for this student
+        Set<String> paidIds = paymentRepo.findByUserEmailAndStatus(email, "PAID")
+                .stream()
+                .map(Payment::getCourseId)
+                .collect(Collectors.toSet());
+
         long onDemand = 0, online = 0, offline = 0;
-        for (Course c : courseRepo.findAll()) {
-            String fmt = c.getFormat() == null ? "" : c.getFormat().toLowerCase();
+        for (String courseId : paidIds) {
+            Optional<Course> opt = courseRepo.findById(courseId);
+            if (opt.isEmpty()) continue;
+            String fmt = opt.get().getFormat() == null ? "" : opt.get().getFormat().toLowerCase();
             if (fmt.contains("demand") || fmt.contains("self")) {
                 onDemand++;
             } else if (fmt.contains("offline") || fmt.contains("campus")
