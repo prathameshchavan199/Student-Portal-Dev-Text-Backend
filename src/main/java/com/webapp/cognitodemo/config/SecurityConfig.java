@@ -70,7 +70,8 @@ public class SecurityConfig {
                                 "/api/users/reset-password",
                                 "/api/users/refresh",
                                 "/api/users/google-auth-url",
-                                "/api/users/google-callback"
+                                "/api/users/google-callback",
+                                "/api/courses/*/image"
                         ).permitAll()
                         .requestMatchers("/api/registration/file/**").authenticated()
                         .anyRequest().authenticated()

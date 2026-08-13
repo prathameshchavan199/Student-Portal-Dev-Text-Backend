@@ -449,6 +449,7 @@ public ResponseEntity<?> verifyOtp(
             @RequestBody Map<String, String> body) {
 
         String code = body.get("code");
+        System.out.println("The google auth code getting from google is : " + code);
         String redirectUri = body.get("redirectUri");
 
         @SuppressWarnings("unchecked")
