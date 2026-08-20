@@ -1,5 +1,6 @@
 package com.webapp.cognitodemo.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.webapp.cognitodemo.entity.assessment.*;
 import com.webapp.cognitodemo.entity.course.Course;
 import com.webapp.cognitodemo.entity.course.CourseReview;
@@ -11,7 +12,9 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class DataSeeder implements ApplicationRunner {
@@ -27,6 +30,7 @@ public class DataSeeder implements ApplicationRunner {
     @Override
     public void run(ApplicationArguments args) {
         seedCourses();
+        seedAiFundamentalsCourse();
         seedReviews();
         seedAssessments();
         seedTopics();
@@ -172,6 +176,108 @@ public class DataSeeder implements ApplicationRunner {
         ));
 
         System.out.println("[DataSeeder] Seeded 6 courses.");
+    }
+
+    /*
+     * Seeds the "AI Fundamentals" on-demand course with a full Udemy-style
+     * curriculum (modules + lessons) and a working video on Module 1 /
+     * Lesson 1. Runs independently of seedCourses() so it inserts even
+     * against a database that already has courses (idempotent — skips if
+     * the course already exists).
+     */
+    private void seedAiFundamentalsCourse() {
+        if (courseRepo.existsById("ai-fundamentals")) return;
+
+        courseRepo.save(
+                Course.builder()
+                        .id("ai-fundamentals")
+                        .title("AI Fundamentals")
+                        .category("onDemand")
+                        .price(499)
+                        .duration("6 Hours")
+                        .level("Beginner")
+                        .imageUrl("https://cdn.cyfenix.com/course-images/ai-fundamentals.jpg")
+                        .instructor("Dr. Ananya Rao")
+                        .description("A hands-on introduction to artificial intelligence — how machines learn, the tools of the trade, and where AI is headed next.")
+                        .courseArea("AI/ML")
+                        .topic("AI/ML")
+                        .format("Self Paced")
+                        .date("Available Now")
+                        .time("Anytime")
+                        .platform("Learning Portal")
+                        .startsIn("Instant access")
+                        .seatsLeft(null)
+                        .accent("purple")
+                        .aboutCourse("AI Fundamentals walks you through the core ideas behind modern artificial intelligence — from what a model actually \"learns\" to how tools like ChatGPT and image generators work under the hood. Every module pairs a short video lesson with practical examples so you leave with real intuition, not just definitions.")
+                        .youWillLearnJson(toJson(List.of(
+                                "What AI, machine learning, and deep learning actually mean — and how they differ",
+                                "How a model learns from data, step by step",
+                                "The building blocks of neural networks",
+                                "How large language models like GPT generate text",
+                                "Practical, ethical, and business considerations for using AI"
+                        )))
+                        .curriculumJson(toJson(List.of(
+                                module("Module 1: Introduction to AI", List.of(
+                                        lesson("What is Artificial Intelligence?", "8:24", null, true),
+                                        lesson("A Brief History of AI", "6:10", null, false),
+                                        lesson("AI vs Machine Learning vs Deep Learning", "7:45", null, false)
+                                )),
+                                module("Module 2: How Machines Learn", List.of(
+                                        lesson("Supervised vs Unsupervised Learning", "9:12", null, false),
+                                        lesson("Training, Testing, and Validation Data", "6:30", null, false),
+                                        lesson("Overfitting and Underfitting Explained", "5:55", null, false)
+                                )),
+                                module("Module 3: Neural Networks & Deep Learning", List.of(
+                                        lesson("Anatomy of a Neural Network", "10:05", null, false),
+                                        lesson("Activation Functions and Backpropagation", "8:40", null, false),
+                                        lesson("Convolutional vs Recurrent Networks", "7:20", null, false)
+                                )),
+                                module("Module 4: Large Language Models", List.of(
+                                        lesson("How GPT-style Models Generate Text", "9:50", null, false),
+                                        lesson("Prompting and Fine-tuning Basics", "7:15", null, false)
+                                )),
+                                module("Module 5: AI in the Real World", List.of(
+                                        lesson("Everyday Applications of AI", "6:45", null, false),
+                                        lesson("Ethics, Bias, and Responsible AI", "8:05", null, false),
+                                        lesson("Where AI is Headed Next", "5:30", null, false)
+                                ))
+                        )))
+                        .build()
+        );
+
+        System.out.println("[DataSeeder] Seeded 'ai-fundamentals' course with video curriculum.");
+    }
+
+    private static final ObjectMapper SEED_MAPPER = new ObjectMapper();
+
+    private String toJson(Object value) {
+        try {
+            return SEED_MAPPER.writeValueAsString(value);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to serialize seed JSON", e);
+        }
+    }
+
+    private Map<String, Object> module(String title, List<Map<String, Object>> lessons) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("title", title);
+        m.put("lessons", lessons);
+        return m;
+    }
+
+    /*
+     * A curriculum lesson. When videoUrl is null the lesson has no playable
+     * video yet (shown as "Coming soon" in the player); isPreview marks a
+     * lesson as watchable without purchasing (not currently used by the UI
+     * but reserved for a future free-preview feature).
+     */
+    private Map<String, Object> lesson(String title, String duration, String videoUrl, boolean isPreview) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("title", title);
+        m.put("duration", duration);
+        if (videoUrl != null) m.put("videoUrl", videoUrl);
+        m.put("isPreview", isPreview);
+        return m;
     }
 
     // ── Reviews ───────────────────────────────────────────────────────────────

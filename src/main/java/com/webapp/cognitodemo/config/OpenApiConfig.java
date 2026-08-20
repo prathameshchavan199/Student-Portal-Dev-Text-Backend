@@ -33,7 +33,13 @@ public class OpenApiConfig {
 //                                .email("cprathamesh199@gmail.com"))
                 )
                 .servers(List.of(
-                        new Server().url("https://api.cyfenix.com").description("Server")))
+                        new Server()
+                                .url("https://api.cyfenix.com")
+                                .description("Production Server"),
+                        new Server()
+                                .url("http://localhost:8081")
+                                .description("Local Server")
+                ))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth", new SecurityScheme()

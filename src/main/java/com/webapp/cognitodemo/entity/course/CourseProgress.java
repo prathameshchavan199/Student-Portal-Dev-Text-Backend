@@ -36,6 +36,16 @@ public class CourseProgress {
     private LocalDateTime startedAt;
     private LocalDateTime completedAt;
 
+    /*
+     * JSON array of completed lesson keys, e.g. ["0-0","0-1","1-0"]
+     * where each key is "{moduleIndex}-{lessonIndex}".
+     */
+    @Column(columnDefinition = "TEXT")
+    private String completedLessonsJson;
+
+    /* Key of the last lesson the learner opened, e.g. "0-1" — used to resume playback. */
+    private String lastLessonKey;
+
     @PrePersist
     public void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now();

@@ -156,6 +156,145 @@ public class CourseService {
         };
     }
 
+    /*
+     * Resolves the playable URL for a lesson's video.
+     * Priority: a plain "videoUrl" on the lesson (e.g. a bundled/static asset
+     * or external CDN link) is returned as-is; otherwise, if the lesson has
+     * a "videoKey", a short-lived S3 presigned URL is generated.
+     */
+    public String getLessonVideoUrl(String courseId, int moduleIndex, int lessonIndex) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        Map<String, Object> lesson = getLesson(course, moduleIndex, lessonIndex);
+
+        Object videoUrl = lesson.get("videoUrl");
+        if (videoUrl instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        Object videoKey = lesson.get("videoKey");
+        if (videoKey instanceof String s && !s.isBlank()) {
+            return s3Service.presignedUrl(s, Duration.ofMinutes(30));
+        }
+
+        throw new NoSuchElementException("No video found for module " + moduleIndex + ", lesson " + lessonIndex);
+    }
+
+    /*
+     * Uploads a video file to S3 for a specific lesson and stores the S3 key
+     * on that lesson inside the course's curriculumJson.
+     *
+     * Mirrors the existing course-image convention (buildImageKey):
+     *   CourseDetails/{OnDemand|Online|Offline}/{courseId}/module-{n}-lesson-{n}.mp4
+     */
+    public Map<String, Object> uploadLessonVideo(String courseId, int moduleIndex, int lessonIndex, MultipartFile file) throws IOException {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
+        Map<String, Object> lesson = getLesson(modules, moduleIndex, lessonIndex);
+
+        String key = buildVideoKey(course.getCategory(), courseId, moduleIndex, lessonIndex);
+        s3Service.upload(key, file);
+
+        lesson.put("videoKey", key);
+        lesson.remove("videoUrl"); // uploaded S3 video takes priority over any static/demo URL
+
+        course.setCurriculumJson(serializeJson(modules));
+        courseRepo.save(course);
+
+        return Map.of("videoKey", key);
+    }
+
+    /*
+     * One-time migration: converts any legacy plain-string lesson entries in a
+     * course's curriculumJson into object-shaped lessons
+     * ({title, duration:null, videoUrl:null, videoKey:null, isPreview:false}),
+     * preserving the original title text. Object-shaped lessons are left
+     * untouched. Safe to call multiple times (idempotent) since already-object
+     * lessons are skipped.
+     */
+    public Map<String, Object> upgradeLegacyLessons(String courseId) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
+
+        int convertedCount = 0;
+        for (Map<String, Object> module : modules) {
+            Object lessonsObj = module.get("lessons");
+            if (!(lessonsObj instanceof List<?> lessonsRaw)) {
+                continue;
+            }
+            @SuppressWarnings("unchecked")
+            List<Object> lessons = (List<Object>) lessonsRaw;
+
+            for (int i = 0; i < lessons.size(); i++) {
+                Object lesson = lessons.get(i);
+                if (lesson instanceof String title) {
+                    Map<String, Object> upgraded = new LinkedHashMap<>();
+                    upgraded.put("title", title);
+                    upgraded.put("duration", null);
+                    upgraded.put("videoUrl", null);
+                    upgraded.put("videoKey", null);
+                    upgraded.put("isPreview", false);
+                    lessons.set(i, upgraded);
+                    convertedCount++;
+                }
+                // already object-shaped lessons are left as-is
+            }
+        }
+
+        course.setCurriculumJson(serializeJson(modules));
+        courseRepo.save(course);
+
+        return Map.of(
+                "courseId", courseId,
+                "lessonsConverted", convertedCount
+        );
+    }
+
+    private String buildVideoKey(String category, String courseId, int moduleIndex, int lessonIndex) {
+        String folder = switch (category) {
+            case "onlineProgram"  -> "CourseDetails/Online/"   + courseId;
+            case "offlineProgram" -> "CourseDetails/Offline/"  + courseId;
+            default               -> "CourseDetails/OnDemand/" + courseId;
+        };
+        return folder + "/module-" + (moduleIndex + 1) + "-lesson-" + (lessonIndex + 1) + ".mp4";
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getLesson(Course course, int moduleIndex, int lessonIndex) {
+        return getLesson(parseCurriculum(course.getCurriculumJson()), moduleIndex, lessonIndex);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> getLesson(List<Map<String, Object>> modules, int moduleIndex, int lessonIndex) {
+        if (moduleIndex < 0 || moduleIndex >= modules.size()) {
+            throw new NoSuchElementException("Module not found at index " + moduleIndex);
+        }
+        Object lessonsObj = modules.get(moduleIndex).get("lessons");
+        if (!(lessonsObj instanceof List<?> lessons) || lessonIndex < 0 || lessonIndex >= lessons.size()) {
+            throw new NoSuchElementException("Lesson not found at index " + lessonIndex);
+        }
+        Object lesson = lessons.get(lessonIndex);
+        if (lesson instanceof Map<?, ?> map) {
+            return (Map<String, Object>) map;
+        }
+        // Legacy lessons stored as plain strings can't hold a video — treat as not found.
+        throw new NoSuchElementException("Lesson at index " + lessonIndex + " has no video metadata");
+    }
+
+    private List<Map<String, Object>> parseCurriculum(String json) {
+        if (json == null || json.isBlank()) return new java.util.ArrayList<>();
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return new java.util.ArrayList<>();
+        }
+    }
+
     public void deleteCourse(String id) {
         if (!courseRepo.existsById(id)) {
             throw new NoSuchElementException("Course not found: " + id);

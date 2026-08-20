@@ -71,7 +71,9 @@ public class SecurityConfig {
                                 "/api/users/refresh",
                                 "/api/users/google-auth-url",
                                 "/api/users/google-callback",
-                                "/api/courses/*/image"
+                                "/api/courses/*/image",
+                                "/api/courses/*/lessons/*/*/video",
+                                "/videos/**"
                         ).permitAll()
                         .requestMatchers("/api/registration/file/**").authenticated()
                         .anyRequest().authenticated()

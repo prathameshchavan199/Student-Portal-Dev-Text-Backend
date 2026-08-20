@@ -142,6 +142,66 @@ public class CourseController {
         }
     }
 
+    @Operation(summary = "Redirect to a playable URL (S3 presigned or static) for a lesson's video")
+    @GetMapping("/{id}/lessons/{moduleIndex}/{lessonIndex}/video")
+    public ResponseEntity<?> getLessonVideo(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex) {
+        try {
+            String url = courseService.getLessonVideoUrl(id, moduleIndex, lessonIndex);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, url)
+                    .build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    @Operation(summary = "Upload a video for a specific curriculum lesson to S3")
+    @PostMapping(value = "/{id}/lessons/{moduleIndex}/{lessonIndex}/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadLessonVideo(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex,
+            @RequestParam("file") MultipartFile file) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", courseService.uploadLessonVideo(id, moduleIndex, lessonIndex, file)
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "success", false,
+                    "message", "Video upload failed: " + e.getMessage()
+            ));
+        }
+    }
+
+    @Operation(summary = "One-time migration: convert legacy plain-string curriculum lessons into object-shaped lessons so they can hold video metadata")
+    @PostMapping("/{id}/lessons/upgrade")
+    public ResponseEntity<?> upgradeLegacyLessons(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", courseService.upgradeLegacyLessons(id)
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
     @Operation(summary = "Post a review for a course")
     @PostMapping("/{id}/reviews")
     public ResponseEntity<?> createReview(
