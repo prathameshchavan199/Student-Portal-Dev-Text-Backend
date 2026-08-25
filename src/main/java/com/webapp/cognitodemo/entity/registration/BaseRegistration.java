@@ -64,9 +64,14 @@ public abstract class BaseRegistration {
     private String undergraduateDegree;
     private String undergraduateOtherDegree;
     private String btechBranch;
+    private String bscStream;
+    private String bscOtherStream;
     private String undergraduateUniversity;
     private String undergraduateGpa;
     private String undergraduateYearOfPassing;
+
+    private Boolean isPursuingUndergraduate;
+    private String undergraduateCurrentYear;
 
     private String undergraduateCertificateKey;
     private String undergraduateCertificateFileName;
