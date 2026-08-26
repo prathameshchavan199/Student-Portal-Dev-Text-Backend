@@ -29,6 +29,10 @@ public class User {
     @Column(name = "provider")
     private String provider = "LOCAL";
 
+    /* STUDENT (default) or TPO_ADMIN — gates access to the TPO admin panel. */
+    @Column(nullable = false, columnDefinition = "varchar(255) default 'STUDENT'")
+    private String role = "STUDENT";
+
     public User() {
     }
 

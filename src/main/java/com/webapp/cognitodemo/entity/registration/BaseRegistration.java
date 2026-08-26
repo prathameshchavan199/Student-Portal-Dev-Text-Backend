@@ -64,14 +64,15 @@ public abstract class BaseRegistration {
     private String undergraduateDegree;
     private String undergraduateOtherDegree;
     private String btechBranch;
-    private String bscStream;
-    private String bscOtherStream;
     private String undergraduateUniversity;
     private String undergraduateGpa;
     private String undergraduateYearOfPassing;
 
-    private Boolean isPursuingUndergraduate;
-    private String undergraduateCurrentYear;
+    /* Academic department, e.g. "Computer Science", "Electronics" — used by the TPO admin panel. */
+    private String department;
+
+    /* Current year of study, e.g. "1st Year".."4th Year", "Graduated" — used by the TPO admin panel. */
+    private String currentYear;
 
     private String undergraduateCertificateKey;
     private String undergraduateCertificateFileName;

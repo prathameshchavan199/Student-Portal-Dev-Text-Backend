@@ -76,6 +76,7 @@ public class SecurityConfig {
                                 "/videos/**"
                         ).permitAll()
                         .requestMatchers("/api/registration/file/**").authenticated()
+                        .requestMatchers("/api/tpo/**").hasRole("TPO_ADMIN")
                         .anyRequest().authenticated()
 
                 )

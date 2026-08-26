@@ -24,7 +24,7 @@ public class UserService {
     private CognitoService cognitoService;
 
     // SIGNUP USER
-    public String signupUser(com.webapp.cognitodemo.entity.@Valid SignupRequest request) {
+    public String signupUser(@Valid SignupRequest request) {
 
         // STEP 1 -> Create in Cognito
         cognitoService.signup(request);
@@ -70,6 +70,7 @@ public class UserService {
         response.setId(user.getId());
         response.setName(user.getFullName());
         response.setRegistered(user.isRegistration());
+        response.setRole(user.getRole());
 
         return response;
     }
@@ -144,6 +145,7 @@ public class UserService {
         response.setId(user.getId());
         response.setName(user.getFullName());
         response.setRegistered(user.isRegistration());
+        response.setRole(user.getRole());
         response.setIdToken(idTokenStr);
         response.setRefreshToken(tokens.get("refresh_token"));
 

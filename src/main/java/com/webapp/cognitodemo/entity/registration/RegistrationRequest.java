@@ -64,22 +64,16 @@ public class RegistrationRequest {
     private String undergraduateOtherDegree;
     @Schema(description = "B.Tech branch (filled when undergraduateDegree = 'B.Tech')", example = "Computer Science")
     private String btechDegree;
-    @Schema(description = "B.Sc stream (filled when undergraduateDegree = 'B.Sc')", example = "Physics")
-    private String bscStream;
-    @Schema(description = "Filled when bscStream = 'Other'", example = "Biotechnology")
-    private String bscOtherStream;
     @Schema(example = "Pune University")
     private String undergraduateUniversity;
     @Schema(description = "Undergraduate GPA or percentage", example = "8.5")
     private String undergraduateGpa;
     @Schema(description = "Undergraduate year of passing", example = "2022")
     private String undergraduateYearOfPassing;
-
-    @Schema(description = "Whether the student is currently pursuing this undergraduate degree")
-    private Boolean isPursuingUndergraduate;
-    @Schema(description = "Current year of study, filled when isPursuingUndergraduate = true. One of: 'First Year', 'Second Year', 'Third Year', 'Fourth Year'", example = "Second Year")
-    private String undergraduateCurrentYear;
-
+    @Schema(description = "Academic department, e.g. 'Computer Science', 'Electronics' — shown in the TPO admin panel", example = "Computer Science")
+    private String department;
+    @Schema(description = "Current year of study, e.g. '1st Year'..'4th Year', 'Graduated' — shown in the TPO admin panel", example = "3rd Year")
+    private String currentYear;
 
     // ── Postgraduate ──────────────────────────────────────────────────────────
     @Schema(description = "Whether the student has completed post-graduation")

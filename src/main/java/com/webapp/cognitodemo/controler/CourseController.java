@@ -186,13 +186,24 @@ public class CourseController {
         }
     }
 
-    @Operation(summary = "One-time migration: convert legacy plain-string curriculum lessons into object-shaped lessons so they can hold video metadata")
-    @PostMapping("/{id}/lessons/upgrade")
-    public ResponseEntity<?> upgradeLegacyLessons(@PathVariable String id) {
+    @Operation(summary = "Link a lesson to a video that already exists in S3, without re-uploading")
+    @PostMapping("/{id}/lessons/{moduleIndex}/{lessonIndex}/video-key")
+    public ResponseEntity<?> setLessonVideoKey(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex,
+            @RequestBody Map<String, String> body) {
         try {
+            String videoKey = body.get("videoKey");
+            if (videoKey == null || videoKey.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "videoKey is required"
+                ));
+            }
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "data", courseService.upgradeLegacyLessons(id)
+                    "data", courseService.setLessonVideoKey(id, moduleIndex, lessonIndex, videoKey)
             ));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(

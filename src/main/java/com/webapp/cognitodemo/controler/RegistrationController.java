@@ -268,6 +268,8 @@ public class RegistrationController {
         map.put("undergraduateUniversity",     nvl(reg.getUndergraduateUniversity()));
         map.put("undergraduateGpa",            nvl(reg.getUndergraduateGpa()));
         map.put("undergraduateYearOfPassing",  nvl(reg.getUndergraduateYearOfPassing()));
+        map.put("department",                  nvl(reg.getDepartment()));
+        map.put("currentYear",                 nvl(reg.getCurrentYear()));
         map.put("hasUndergraduateCertificate", hasKey(reg.getUndergraduateCertificateKey()));
         map.put("undergraduateCertificateFileName", nvl(reg.getUndergraduateCertificateFileName()));
         map.put("hasPostGraduation",           reg.getHasPostGraduation() != null && reg.getHasPostGraduation());

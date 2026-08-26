@@ -207,54 +207,6 @@ public class CourseService {
         return Map.of("videoKey", key);
     }
 
-    /*
-     * One-time migration: converts any legacy plain-string lesson entries in a
-     * course's curriculumJson into object-shaped lessons
-     * ({title, duration:null, videoUrl:null, videoKey:null, isPreview:false}),
-     * preserving the original title text. Object-shaped lessons are left
-     * untouched. Safe to call multiple times (idempotent) since already-object
-     * lessons are skipped.
-     */
-    public Map<String, Object> upgradeLegacyLessons(String courseId) {
-        Course course = courseRepo.findById(courseId)
-                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
-
-        List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
-
-        int convertedCount = 0;
-        for (Map<String, Object> module : modules) {
-            Object lessonsObj = module.get("lessons");
-            if (!(lessonsObj instanceof List<?> lessonsRaw)) {
-                continue;
-            }
-            @SuppressWarnings("unchecked")
-            List<Object> lessons = (List<Object>) lessonsRaw;
-
-            for (int i = 0; i < lessons.size(); i++) {
-                Object lesson = lessons.get(i);
-                if (lesson instanceof String title) {
-                    Map<String, Object> upgraded = new LinkedHashMap<>();
-                    upgraded.put("title", title);
-                    upgraded.put("duration", null);
-                    upgraded.put("videoUrl", null);
-                    upgraded.put("videoKey", null);
-                    upgraded.put("isPreview", false);
-                    lessons.set(i, upgraded);
-                    convertedCount++;
-                }
-                // already object-shaped lessons are left as-is
-            }
-        }
-
-        course.setCurriculumJson(serializeJson(modules));
-        courseRepo.save(course);
-
-        return Map.of(
-                "courseId", courseId,
-                "lessonsConverted", convertedCount
-        );
-    }
-
     private String buildVideoKey(String category, String courseId, int moduleIndex, int lessonIndex) {
         String folder = switch (category) {
             case "onlineProgram"  -> "CourseDetails/Online/"   + courseId;
@@ -262,6 +214,26 @@ public class CourseService {
             default               -> "CourseDetails/OnDemand/" + courseId;
         };
         return folder + "/module-" + (moduleIndex + 1) + "-lesson-" + (lessonIndex + 1) + ".mp4";
+    }
+
+    /*
+     * Points a lesson at a video that's already sitting in S3 (e.g. uploaded
+     * manually via the AWS console) without re-uploading anything.
+     */
+    public Map<String, Object> setLessonVideoKey(String courseId, int moduleIndex, int lessonIndex, String videoKey) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
+        Map<String, Object> lesson = getLesson(modules, moduleIndex, lessonIndex);
+
+        lesson.put("videoKey", videoKey);
+        lesson.remove("videoUrl");
+
+        course.setCurriculumJson(serializeJson(modules));
+        courseRepo.save(course);
+
+        return Map.of("videoKey", videoKey);
     }
 
     @SuppressWarnings("unchecked")

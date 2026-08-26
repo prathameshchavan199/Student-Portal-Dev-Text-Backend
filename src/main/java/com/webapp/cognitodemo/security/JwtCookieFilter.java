@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -15,20 +17,26 @@ import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
+import com.webapp.cognitodemo.repo.UserRepo;
+
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @Component
 public class JwtCookieFilter extends OncePerRequestFilter {
 
     private final JwtDecoder jwtDecoder;
     private final JwtDecoder googleJwtDecoder;
+    private final UserRepo userRepo;
 
     public JwtCookieFilter(
             JwtDecoder jwtDecoder,
-            @Qualifier("googleJwtDecoder") JwtDecoder googleJwtDecoder) {
+            @Qualifier("googleJwtDecoder") JwtDecoder googleJwtDecoder,
+            UserRepo userRepo) {
         this.jwtDecoder = jwtDecoder;
         this.googleJwtDecoder = googleJwtDecoder;
+        this.userRepo = userRepo;
     }
 
     @Override
@@ -121,7 +129,7 @@ public class JwtCookieFilter extends OncePerRequestFilter {
                     new UsernamePasswordAuthenticationToken(
                             email,
                             null,
-                            Collections.emptyList()
+                            authoritiesFor(email)
                     );
 
             /*
@@ -130,7 +138,7 @@ public class JwtCookieFilter extends OncePerRequestFilter {
              * deferred-context instance that AuthorizationFilter won't see.
              */
             org.springframework.security.core.context.SecurityContext context =
-                    org.springframework.security.core.context.SecurityContextHolder
+                    SecurityContextHolder
                             .createEmptyContext();
             context.setAuthentication(authentication);
             SecurityContextHolder.setContext(context);
@@ -164,5 +172,20 @@ public class JwtCookieFilter extends OncePerRequestFilter {
                 request,
                 response
         );
+    }
+
+    /*
+     * Looks up the user's role in our own DB (not the Cognito token — the
+     * token has no role claim) and returns the matching Spring Security
+     * authority, e.g. "STUDENT" -> ROLE_STUDENT, "TPO_ADMIN" -> ROLE_TPO_ADMIN.
+     * Defaults to ROLE_STUDENT if the user can't be found for any reason,
+     * so a lookup failure never accidentally grants admin access.
+     */
+    private List<GrantedAuthority> authoritiesFor(String email) {
+        String role = userRepo.findByEmail(email)
+                .map(u -> u.getRole())
+                .filter(r -> r != null && !r.isBlank())
+                .orElse("STUDENT");
+        return Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
     }
 }
