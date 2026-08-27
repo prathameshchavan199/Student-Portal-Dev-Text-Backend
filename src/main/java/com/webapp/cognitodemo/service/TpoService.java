@@ -75,7 +75,7 @@ public class TpoService {
         stats.put("totalEnrollments", allProgress.size());
         stats.put("courseStatus", courseStatus);
         stats.put("assessmentStatus", assessmentStatus);
-        stats.put("departmentReadiness", departmentReadinessIndex(students, attempts));
+        stats.put("degreeReadiness", degreeReadinessIndex(students, attempts));
         stats.put("studentQualification", studentQualification(students, attempts));
         stats.put("assessmentPillars", assessmentPillars(attempts));
 
@@ -149,11 +149,27 @@ public class TpoService {
     }
 
     /*
-     * Average assessment score (%) per department, sorted highest-first.
-     * This is what's derivable and honest — there's no "AI readiness" model,
-     * so we surface actual assessment performance grouped by department.
+     * Groups a student by their undergraduate degree (e.g. "B.Tech", "BCA"),
+     * falling back to their custom entry when the degree is "Other".
+     * Replaces the old department-based grouping across the TPO admin panel.
      */
-    private List<Map<String, Object>> departmentReadinessIndex(List<StudentRegistration> students, List<UserAttempt> attempts) {
+    private String degreeLabel(StudentRegistration s) {
+        if (s.getHasUndergraduate() == null || !s.getHasUndergraduate()) return "Unspecified";
+        String degree = s.getUndergraduateDegree();
+        if (degree == null || degree.isBlank()) return "Unspecified";
+        if ("Other".equalsIgnoreCase(degree)) {
+            String other = s.getUndergraduateOtherDegree();
+            return (other == null || other.isBlank()) ? "Other" : other;
+        }
+        return degree;
+    }
+
+    /*
+     * Average assessment score (%) per undergraduate degree, sorted highest-first.
+     * This is what's derivable and honest — there's no "AI readiness" model,
+     * so we surface actual assessment performance grouped by degree.
+     */
+    private List<Map<String, Object>> degreeReadinessIndex(List<StudentRegistration> students, List<UserAttempt> attempts) {
         Map<String, List<Double>> scoresByEmail = attempts.stream()
                 .filter(a -> a.getTotal() > 0)
                 .collect(Collectors.groupingBy(
@@ -161,20 +177,20 @@ public class TpoService {
                         Collectors.mapping(a -> a.getScore() * 100.0 / a.getTotal(), Collectors.toList())
                 ));
 
-        Map<String, List<Double>> scoresByDept = new LinkedHashMap<>();
+        Map<String, List<Double>> scoresByDegree = new LinkedHashMap<>();
         for (StudentRegistration s : students) {
-            String dept = (s.getDepartment() == null || s.getDepartment().isBlank()) ? "Unspecified" : s.getDepartment();
+            String degree = degreeLabel(s);
             List<Double> studentScores = scoresByEmail.getOrDefault(s.getEmail(), List.of());
             if (studentScores.isEmpty()) continue;
             double avg = studentScores.stream().mapToDouble(Double::doubleValue).average().orElse(0);
-            scoresByDept.computeIfAbsent(dept, k -> new ArrayList<>()).add(avg);
+            scoresByDegree.computeIfAbsent(degree, k -> new ArrayList<>()).add(avg);
         }
 
-        return scoresByDept.entrySet().stream()
+        return scoresByDegree.entrySet().stream()
                 .map(e -> {
                     double avg = e.getValue().stream().mapToDouble(Double::doubleValue).average().orElse(0);
                     Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("department", e.getKey());
+                    m.put("degree", e.getKey());
                     m.put("averageScorePct", Math.round(avg * 10) / 10.0);
                     m.put("studentsWithAttempts", e.getValue().size());
                     return m;
@@ -193,25 +209,45 @@ public class TpoService {
 
     // ── Courses table ────────────────────────────────────────────────────────
 
-    public Map<String, Object> getCourses(String search, String category, String status, int page, int size) {
+    public Map<String, Object> getCourses(String search, String category, String degree, String status, int page, int size) {
         List<CourseProgress> allProgress = progressRepo.findAll();
         Map<String, List<CourseProgress>> progressByCourse = allProgress.stream()
                 .collect(Collectors.groupingBy(CourseProgress::getCourseId));
+
+        Map<String, String> degreeByEmail = registrationRepo.findAll().stream()
+                .collect(Collectors.toMap(
+                        StudentRegistration::getEmail,
+                        this::degreeLabel,
+                        (a, b) -> a));
 
         List<Map<String, Object>> allRows = courseRepo.findAll().stream()
                 .map(c -> {
                     List<CourseProgress> rowsForCourse = progressByCourse.getOrDefault(c.getId(), List.of());
                     double avgPct = rowsForCourse.isEmpty() ? 0 :
                             rowsForCourse.stream().mapToInt(CourseProgress::getProgressPct).average().orElse(0);
+                    long completedStudents = rowsForCourse.stream()
+                            .filter(cp -> cp.getProgressPct() >= 100)
+                            .count();
+
+                    // Most common undergraduate degree among students enrolled in this course —
+                    // an honest derived grouping, since courses aren't assigned a degree directly.
+                    Map<String, Long> degreeCounts = rowsForCourse.stream()
+                            .map(cp -> degreeByEmail.getOrDefault(cp.getUserEmail(), "Unspecified"))
+                            .collect(Collectors.groupingBy(d -> d, Collectors.counting()));
+                    String topDegree = degreeCounts.entrySet().stream()
+                            .max(Map.Entry.comparingByValue())
+                            .map(Map.Entry::getKey)
+                            .orElse("Unspecified");
+
                     Map<String, Object> m = new LinkedHashMap<>();
                     m.put("courseId", c.getId());
                     m.put("courseName", c.getTitle());
-                    // No per-course "department" concept exists — category (On-Demand/Online/Offline)
-                    // is the closest real, honest grouping we have at the course level.
                     m.put("category", c.getCategory());
+                    m.put("degree", topDegree);
                     m.put("students", rowsForCourse.size());
                     m.put("status", bucketForCourse(rowsForCourse));
                     m.put("completionPct", Math.round(avgPct * 10) / 10.0);
+                    m.put("completedStudents", completedStudents);
                     return m;
                 })
                 .collect(Collectors.toList());
@@ -225,6 +261,7 @@ public class TpoService {
                 .filter(m -> search == null || search.isBlank()
                         || ((String) m.get("courseName")).toLowerCase().contains(search.toLowerCase()))
                 .filter(m -> category == null || category.isBlank() || category.equalsIgnoreCase((String) m.get("category")))
+                .filter(m -> degree == null || degree.isBlank() || degree.equalsIgnoreCase((String) m.get("degree")))
                 .filter(m -> status == null || status.isBlank() || status.equalsIgnoreCase((String) m.get("status")))
                 .sorted(Comparator.comparing(m -> (String) m.get("courseName")))
                 .collect(Collectors.toList());
@@ -241,7 +278,7 @@ public class TpoService {
 
     // ── Students table ───────────────────────────────────────────────────────
 
-    public Map<String, Object> getStudents(String search, String department, String year, String status, int page, int size) {
+    public Map<String, Object> getStudents(String search, String degree, String year, String status, int page, int size) {
         List<UserAttempt> allAttempts = attemptRepo.findAll();
         List<CourseProgress> allProgress = progressRepo.findAll();
         long totalModules = moduleRepo.count();
@@ -281,7 +318,7 @@ public class TpoService {
                     m.put("studentId", "STU" + s.getId());
                     m.put("name", s.getFullName());
                     m.put("email", s.getEmail());
-                    m.put("department", s.getDepartment() == null || s.getDepartment().isBlank() ? "Unspecified" : s.getDepartment());
+                    m.put("degree", degreeLabel(s));
                     m.put("year", s.getCurrentYear() == null || s.getCurrentYear().isBlank() ? "Unspecified" : s.getCurrentYear());
                     m.put("status", derivedStatus);
                     m.put("readinessPct", Math.round(readiness * 10) / 10.0);
@@ -295,7 +332,7 @@ public class TpoService {
                         || ((String) m.get("name")).toLowerCase().contains(search.toLowerCase())
                         || ((String) m.get("email")).toLowerCase().contains(search.toLowerCase())
                         || ((String) m.get("studentId")).toLowerCase().contains(search.toLowerCase()))
-                .filter(m -> department == null || department.isBlank() || department.equalsIgnoreCase((String) m.get("department")))
+                .filter(m -> degree == null || degree.isBlank() || degree.equalsIgnoreCase((String) m.get("degree")))
                 .filter(m -> year == null || year.isBlank() || year.equalsIgnoreCase((String) m.get("year")))
                 .filter(m -> status == null || status.isBlank() || status.equalsIgnoreCase((String) m.get("status")))
                 .sorted(Comparator.comparing(m -> (String) m.get("name")))
@@ -306,14 +343,14 @@ public class TpoService {
 
     // ── Assessments table ────────────────────────────────────────────────────
 
-    public Map<String, Object> getAssessments(String search, String type, String department, int page, int size) {
+    public Map<String, Object> getAssessments(String search, String type, String degree, int page, int size) {
         List<UserAttempt> allAttempts = attemptRepo.findAll();
         List<StudentRegistration> students = registrationRepo.findAll();
 
-        Map<String, String> deptByEmail = students.stream()
+        Map<String, String> degreeByEmail = students.stream()
                 .collect(Collectors.toMap(
                         StudentRegistration::getEmail,
-                        s -> s.getDepartment() == null || s.getDepartment().isBlank() ? "Unspecified" : s.getDepartment(),
+                        this::degreeLabel,
                         (a, b) -> a));
 
         Map<String, List<UserAttempt>> attemptsByModule = allAttempts.stream()
@@ -326,12 +363,12 @@ public class TpoService {
                     Set<String> distinctStudents = moduleAttempts.stream()
                             .map(UserAttempt::getUserEmail).collect(Collectors.toSet());
 
-                    // Most common department among students who attempted this module —
-                    // an honest derived grouping, since modules aren't assigned a department directly.
-                    Map<String, Long> deptCounts = moduleAttempts.stream()
-                            .map(a -> deptByEmail.getOrDefault(a.getUserEmail(), "Unspecified"))
+                    // Most common undergraduate degree among students who attempted this module —
+                    // an honest derived grouping, since modules aren't assigned a degree directly.
+                    Map<String, Long> degreeCounts = moduleAttempts.stream()
+                            .map(a -> degreeByEmail.getOrDefault(a.getUserEmail(), "Unspecified"))
                             .collect(Collectors.groupingBy(d -> d, Collectors.counting()));
-                    String topDept = deptCounts.entrySet().stream()
+                    String topDegree = degreeCounts.entrySet().stream()
                             .max(Map.Entry.comparingByValue())
                             .map(Map.Entry::getKey)
                             .orElse("Unspecified");
@@ -345,7 +382,7 @@ public class TpoService {
                     m.put("assessmentId", mod.getId());
                     m.put("name", mod.getTitle());
                     m.put("type", mod.getCategoryId() == null || mod.getCategoryId().isBlank() ? "Uncategorized" : mod.getCategoryId());
-                    m.put("department", topDept);
+                    m.put("degree", topDegree);
                     m.put("students", distinctStudents.size());
                     m.put("completedPct", Math.round(avgPct * 10) / 10.0);
                     return m;
@@ -353,7 +390,7 @@ public class TpoService {
                 .filter(m -> search == null || search.isBlank()
                         || ((String) m.get("name")).toLowerCase().contains(search.toLowerCase()))
                 .filter(m -> type == null || type.isBlank() || type.equalsIgnoreCase((String) m.get("type")))
-                .filter(m -> department == null || department.isBlank() || department.equalsIgnoreCase((String) m.get("department")))
+                .filter(m -> degree == null || degree.isBlank() || degree.equalsIgnoreCase((String) m.get("degree")))
                 .sorted(Comparator.comparing(m -> (String) m.get("name")))
                 .collect(Collectors.toList());
 

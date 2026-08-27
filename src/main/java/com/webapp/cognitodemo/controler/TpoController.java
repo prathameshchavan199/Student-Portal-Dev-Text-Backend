@@ -20,7 +20,7 @@ public class TpoController {
 
     @Autowired private TpoService tpoService;
 
-    @Operation(summary = "Institutional dashboard — course status, assessment status, department readiness")
+    @Operation(summary = "Institutional dashboard — course status, assessment status, undergraduate degree readiness")
     @GetMapping("/dashboard")
     public ResponseEntity<?> getDashboard() {
         return ResponseEntity.ok(Map.of(
@@ -34,41 +34,42 @@ public class TpoController {
     public ResponseEntity<?> getCourses(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
+            @RequestParam(required = false) String degree,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "data", tpoService.getCourses(search, category, status, page, size)
+                "data", tpoService.getCourses(search, category, degree, status, page, size)
         ));
     }
 
-    @Operation(summary = "Paginated assessment-module list with department, students, and average score")
+    @Operation(summary = "Paginated assessment-module list with undergraduate degree, students, and average score")
     @GetMapping("/assessments")
     public ResponseEntity<?> getAssessments(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String degree,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "data", tpoService.getAssessments(search, type, department, page, size)
+                "data", tpoService.getAssessments(search, type, degree, page, size)
         ));
     }
 
-    @Operation(summary = "Paginated student list with department, readiness, and completion")
+    @Operation(summary = "Paginated student list with undergraduate degree, readiness, and completion")
     @GetMapping("/students")
     public ResponseEntity<?> getStudents(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String degree,
             @RequestParam(required = false) String year,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "data", tpoService.getStudents(search, department, year, status, page, size)
+                "data", tpoService.getStudents(search, degree, year, status, page, size)
         ));
     }
 }

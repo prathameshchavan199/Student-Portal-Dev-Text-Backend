@@ -70,9 +70,9 @@ public class RegistrationRequest {
     private String undergraduateGpa;
     @Schema(description = "Undergraduate year of passing", example = "2022")
     private String undergraduateYearOfPassing;
-    @Schema(description = "Academic department, e.g. 'Computer Science', 'Electronics' — shown in the TPO admin panel", example = "Computer Science")
-    private String department;
-    @Schema(description = "Current year of study, e.g. '1st Year'..'4th Year', 'Graduated' — shown in the TPO admin panel", example = "3rd Year")
+    @Schema(description = "Whether the student is currently pursuing this undergraduate degree (vs. already graduated)")
+    private Boolean isPursuingUndergraduate;
+    @Schema(description = "Current year of study, e.g. '1st Year'..'4th Year' — shown in the TPO admin panel; only meaningful when isPursuingUndergraduate is true", example = "3rd Year")
     private String currentYear;
 
     // ── Postgraduate ──────────────────────────────────────────────────────────

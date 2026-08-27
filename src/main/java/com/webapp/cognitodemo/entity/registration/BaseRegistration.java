@@ -68,10 +68,15 @@ public abstract class BaseRegistration {
     private String undergraduateGpa;
     private String undergraduateYearOfPassing;
 
-    /* Academic department, e.g. "Computer Science", "Electronics" — used by the TPO admin panel. */
+    /* Academic department, e.g. "Computer Science", "Electronics" — used by the TPO admin panel.
+     * No longer collected on the registration form itself; kept here so existing data and the
+     * TPO admin panel's department-based analytics keep working. */
     private String department;
 
-    /* Current year of study, e.g. "1st Year".."4th Year", "Graduated" — used by the TPO admin panel. */
+    /* Whether the student is currently pursuing this undergraduate degree (vs. already graduated). */
+    private Boolean isPursuingUndergraduate;
+
+    /* Current year of study, e.g. "1st Year".."4th Year" — used by the TPO admin panel. Only meaningful when isPursuingUndergraduate is true. */
     private String currentYear;
 
     private String undergraduateCertificateKey;

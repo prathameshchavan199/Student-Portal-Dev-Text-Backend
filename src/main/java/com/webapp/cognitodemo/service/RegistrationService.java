@@ -156,7 +156,7 @@ public class RegistrationService {
         target.setUndergraduateUniversity(req.getUndergraduateUniversity());
         target.setUndergraduateGpa(req.getUndergraduateGpa());
         target.setUndergraduateYearOfPassing(req.getUndergraduateYearOfPassing());
-        target.setDepartment(req.getDepartment());
+        target.setIsPursuingUndergraduate(req.getIsPursuingUndergraduate());
         target.setCurrentYear(req.getCurrentYear());
         if (hasContent(undergraduateMarksheetFile)) {
             String key = s3Service.upload(s3Key(email, "undergraduate_certificate", undergraduateMarksheetFile), undergraduateMarksheetFile);
