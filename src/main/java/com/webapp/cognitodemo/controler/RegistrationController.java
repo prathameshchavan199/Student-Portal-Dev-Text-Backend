@@ -264,7 +264,7 @@ public class RegistrationController {
         map.put("hasUndergraduate",            reg.getHasUndergraduate() != null && reg.getHasUndergraduate());
         map.put("undergraduateDegree",         nvl(reg.getUndergraduateDegree()));
         map.put("undergraduateOtherDegree",    nvl(reg.getUndergraduateOtherDegree()));
-        map.put("btechBranch",                 nvl(reg.getBtechBranch()));
+        map.put("undergraduateSpecialization", nvl(reg.getUndergraduateSpecialization()));
         map.put("undergraduateUniversity",     nvl(reg.getUndergraduateUniversity()));
         map.put("undergraduateGpa",            nvl(reg.getUndergraduateGpa()));
         map.put("undergraduateYearOfPassing",  nvl(reg.getUndergraduateYearOfPassing()));

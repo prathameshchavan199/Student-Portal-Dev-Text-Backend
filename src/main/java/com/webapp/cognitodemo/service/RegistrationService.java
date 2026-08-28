@@ -152,7 +152,7 @@ public class RegistrationService {
         target.setHasUndergraduate(req.getHasUndergraduate());
         target.setUndergraduateDegree(req.getUndergraduateDegree());
         target.setUndergraduateOtherDegree(req.getUndergraduateOtherDegree());
-        target.setBtechBranch(req.getBtechDegree());
+        target.setUndergraduateSpecialization(req.getUndergraduateSpecialization());
         target.setUndergraduateUniversity(req.getUndergraduateUniversity());
         target.setUndergraduateGpa(req.getUndergraduateGpa());
         target.setUndergraduateYearOfPassing(req.getUndergraduateYearOfPassing());

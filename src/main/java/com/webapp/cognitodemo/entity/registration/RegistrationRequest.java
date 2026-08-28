@@ -62,8 +62,8 @@ public class RegistrationRequest {
     private String undergraduateDegree;
     @Schema(description = "Filled when undergraduateDegree = 'Other'", example = "B.Voc")
     private String undergraduateOtherDegree;
-    @Schema(description = "B.Tech branch (filled when undergraduateDegree = 'B.Tech')", example = "Computer Science")
-    private String btechDegree;
+    @Schema(description = "Branch/specialization (filled when undergraduateDegree = 'B.Tech' or 'B.Sc'; options differ by degree)", example = "Computer Science Engineering (CSE)")
+    private String undergraduateSpecialization;
     @Schema(example = "Pune University")
     private String undergraduateUniversity;
     @Schema(description = "Undergraduate GPA or percentage", example = "8.5")

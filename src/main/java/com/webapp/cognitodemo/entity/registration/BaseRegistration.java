@@ -63,7 +63,7 @@ public abstract class BaseRegistration {
     private Boolean hasUndergraduate;
     private String undergraduateDegree;
     private String undergraduateOtherDegree;
-    private String btechBranch;
+    private String undergraduateSpecialization;
     private String undergraduateUniversity;
     private String undergraduateGpa;
     private String undergraduateYearOfPassing;
