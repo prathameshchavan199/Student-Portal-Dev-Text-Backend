@@ -44,17 +44,16 @@ public class TpoController {
         ));
     }
 
-    @Operation(summary = "Paginated assessment-module list with undergraduate degree, students, and average score")
+    @Operation(summary = "Paginated assessment list — one row per assessment category (Technical Skills, Problem Solving, Communication, Data Skills), with undergraduate degree, students, and average score")
     @GetMapping("/assessments")
     public ResponseEntity<?> getAssessments(
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) String type,
             @RequestParam(required = false) String degree,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "data", tpoService.getAssessments(search, type, degree, page, size)
+                "data", tpoService.getAssessments(search, degree, page, size)
         ));
     }
 

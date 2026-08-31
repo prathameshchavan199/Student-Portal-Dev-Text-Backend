@@ -1,17 +1,25 @@
 package com.webapp.cognitodemo.service;
 
+import com.webapp.cognitodemo.entity.User;
+import com.webapp.cognitodemo.entity.assessment.AssessmentCategory;
+import com.webapp.cognitodemo.entity.assessment.AssessmentModule;
 import com.webapp.cognitodemo.entity.course.Course;
 import com.webapp.cognitodemo.entity.course.CourseProgress;
 import com.webapp.cognitodemo.entity.assessment.UserAttempt;
 import com.webapp.cognitodemo.entity.registration.StudentRegistration;
+import com.webapp.cognitodemo.repo.AssessmentCategoryRepo;
 import com.webapp.cognitodemo.repo.AssessmentModuleRepo;
 import com.webapp.cognitodemo.repo.CourseProgressRepo;
 import com.webapp.cognitodemo.repo.CourseRepo;
 import com.webapp.cognitodemo.repo.RegistrationRepo;
 import com.webapp.cognitodemo.repo.UserAttemptRepo;
+import com.webapp.cognitodemo.repo.UserRepo;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -22,6 +30,11 @@ import java.util.stream.Collectors;
  * system (courses, course-progress, student registrations, assessment
  * attempts) — there is no placement/campus-drive/offers data model yet,
  * so that section is intentionally left out rather than faked.
+ *
+ * College scoping: a TPO admin only ever sees students whose undergraduate
+ * OR postgraduate college matches the admin's own `college` (set on the
+ * User entity). Every method below works from a college-scoped student
+ * list so course/assessment stats never leak another college's data.
  */
 @Service
 public class TpoService {
@@ -31,14 +44,50 @@ public class TpoService {
     @Autowired private RegistrationRepo registrationRepo;
     @Autowired private UserAttemptRepo attemptRepo;
     @Autowired private AssessmentModuleRepo moduleRepo;
+    @Autowired private AssessmentCategoryRepo categoryRepo;
+    @Autowired private UserRepo userRepo;
+
+    /* The logged-in TPO admin's college, or null if they have none set / aren't authenticated. */
+    private String currentAdminCollege() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) return null;
+        return userRepo.findByEmail(auth.getName())
+                .map(User::getCollege)
+                .filter(c -> c != null && !c.isBlank())
+                .orElse(null);
+    }
+
+    /*
+     * All students whose undergraduate or postgraduate college matches the
+     * current TPO admin's college. If the admin has no college configured,
+     * returns an empty list — no college means no visible students, rather
+     * than accidentally showing everyone.
+     */
+    private List<StudentRegistration> scopedStudents() {
+        String college = currentAdminCollege();
+        if (college == null) return List.of();
+        return registrationRepo.findAll().stream()
+                .filter(s -> college.equalsIgnoreCase(s.getUndergraduateUniversity())
+                        || college.equalsIgnoreCase(s.getPostGraduationUniversity()))
+                .collect(Collectors.toList());
+    }
+
+    private Set<String> emailsOf(List<StudentRegistration> students) {
+        return students.stream().map(StudentRegistration::getEmail).collect(Collectors.toSet());
+    }
 
     // ── Dashboard ────────────────────────────────────────────────────────────
 
     public Map<String, Object> getDashboard() {
         List<Course> courses = courseRepo.findAll();
-        List<CourseProgress> allProgress = progressRepo.findAll();
-        List<StudentRegistration> students = registrationRepo.findAll();
-        List<UserAttempt> attempts = attemptRepo.findAll();
+        List<StudentRegistration> students = scopedStudents();
+        Set<String> emails = emailsOf(students);
+        List<CourseProgress> allProgress = progressRepo.findAll().stream()
+                .filter(p -> emails.contains(p.getUserEmail()))
+                .collect(Collectors.toList());
+        List<UserAttempt> attempts = attemptRepo.findAll().stream()
+                .filter(a -> emails.contains(a.getUserEmail()))
+                .collect(Collectors.toList());
         long totalModules = moduleRepo.count();
 
         Map<String, List<CourseProgress>> progressByCourse = allProgress.stream()
@@ -210,11 +259,15 @@ public class TpoService {
     // ── Courses table ────────────────────────────────────────────────────────
 
     public Map<String, Object> getCourses(String search, String category, String degree, String status, int page, int size) {
-        List<CourseProgress> allProgress = progressRepo.findAll();
+        List<StudentRegistration> students = scopedStudents();
+        Set<String> emails = emailsOf(students);
+        List<CourseProgress> allProgress = progressRepo.findAll().stream()
+                .filter(p -> emails.contains(p.getUserEmail()))
+                .collect(Collectors.toList());
         Map<String, List<CourseProgress>> progressByCourse = allProgress.stream()
                 .collect(Collectors.groupingBy(CourseProgress::getCourseId));
 
-        Map<String, String> degreeByEmail = registrationRepo.findAll().stream()
+        Map<String, String> degreeByEmail = students.stream()
                 .collect(Collectors.toMap(
                         StudentRegistration::getEmail,
                         this::degreeLabel,
@@ -279,8 +332,14 @@ public class TpoService {
     // ── Students table ───────────────────────────────────────────────────────
 
     public Map<String, Object> getStudents(String search, String degree, String year, String status, int page, int size) {
-        List<UserAttempt> allAttempts = attemptRepo.findAll();
-        List<CourseProgress> allProgress = progressRepo.findAll();
+        List<StudentRegistration> students = scopedStudents();
+        Set<String> emails = emailsOf(students);
+        List<UserAttempt> allAttempts = attemptRepo.findAll().stream()
+                .filter(a -> emails.contains(a.getUserEmail()))
+                .collect(Collectors.toList());
+        List<CourseProgress> allProgress = progressRepo.findAll().stream()
+                .filter(p -> emails.contains(p.getUserEmail()))
+                .collect(Collectors.toList());
         long totalModules = moduleRepo.count();
 
         Map<String, List<UserAttempt>> attemptsByEmail = allAttempts.stream()
@@ -288,7 +347,7 @@ public class TpoService {
         Map<String, List<CourseProgress>> progressByEmail = allProgress.stream()
                 .collect(Collectors.groupingBy(CourseProgress::getUserEmail));
 
-        List<Map<String, Object>> rows = registrationRepo.findAll().stream()
+        List<Map<String, Object>> rows = students.stream()
                 .map(s -> {
                     List<UserAttempt> myAttempts = attemptsByEmail.getOrDefault(s.getEmail(), List.of());
                     List<CourseProgress> myProgress = progressByEmail.getOrDefault(s.getEmail(), List.of());
@@ -343,9 +402,12 @@ public class TpoService {
 
     // ── Assessments table ────────────────────────────────────────────────────
 
-    public Map<String, Object> getAssessments(String search, String type, String degree, int page, int size) {
-        List<UserAttempt> allAttempts = attemptRepo.findAll();
-        List<StudentRegistration> students = registrationRepo.findAll();
+    public Map<String, Object> getAssessments(String search, String degree, int page, int size) {
+        List<StudentRegistration> students = scopedStudents();
+        Set<String> emails = emailsOf(students);
+        List<UserAttempt> allAttempts = attemptRepo.findAll().stream()
+                .filter(a -> emails.contains(a.getUserEmail()))
+                .collect(Collectors.toList());
 
         Map<String, String> degreeByEmail = students.stream()
                 .collect(Collectors.toMap(
@@ -353,50 +415,106 @@ public class TpoService {
                         this::degreeLabel,
                         (a, b) -> a));
 
-        Map<String, List<UserAttempt>> attemptsByModule = allAttempts.stream()
-                .collect(Collectors.groupingBy(UserAttempt::getModuleId));
+        // Every module belongs to one of the 4 assessment categories
+        // (Technical Skills / Problem Solving / Communication / Data Skills).
+        // Within each category, the admin panel shows one row PER undergraduate
+        // degree that has attempted it — e.g. "Problem Solving" for B.Tech and
+        // "Problem Solving" for B.Sc are two separate rows.
+        Map<String, String> categoryByModule = moduleRepo.findAll().stream()
+                .collect(Collectors.toMap(
+                        AssessmentModule::getId,
+                        m -> m.getCategoryId() == null || m.getCategoryId().isBlank() ? "uncategorized" : m.getCategoryId(),
+                        (a, b) -> a));
 
-        List<Map<String, Object>> rows = moduleRepo.findAll().stream()
-                .map(mod -> {
-                    List<UserAttempt> moduleAttempts = attemptsByModule.getOrDefault(mod.getId(), List.of());
+        // categoryId -> degree -> attempts
+        Map<String, Map<String, List<UserAttempt>>> attemptsByCategoryAndDegree = new LinkedHashMap<>();
+        for (UserAttempt a : allAttempts) {
+            String catId = categoryByModule.getOrDefault(a.getModuleId(), "uncategorized");
+            String deg = degreeByEmail.getOrDefault(a.getUserEmail(), "Unspecified");
+            attemptsByCategoryAndDegree
+                    .computeIfAbsent(catId, k -> new LinkedHashMap<>())
+                    .computeIfAbsent(deg, k -> new ArrayList<>())
+                    .add(a);
+        }
 
-                    Set<String> distinctStudents = moduleAttempts.stream()
-                            .map(UserAttempt::getUserEmail).collect(Collectors.toSet());
+        List<Map<String, Object>> rows = new ArrayList<>();
+        // Parallel list tracking when each row's (category, degree) combo first
+        // appeared (earliest attempt timestamp) — used to put the most recently
+        // introduced row at the top. Rows with no attempts yet sort to the bottom.
+        List<LocalDateTime> rowFirstSeenAt = new ArrayList<>();
 
-                    // Most common undergraduate degree among students who attempted this module —
-                    // an honest derived grouping, since modules aren't assigned a degree directly.
-                    Map<String, Long> degreeCounts = moduleAttempts.stream()
-                            .map(a -> degreeByEmail.getOrDefault(a.getUserEmail(), "Unspecified"))
-                            .collect(Collectors.groupingBy(d -> d, Collectors.counting()));
-                    String topDegree = degreeCounts.entrySet().stream()
-                            .max(Map.Entry.comparingByValue())
-                            .map(Map.Entry::getKey)
-                            .orElse("Unspecified");
+        for (AssessmentCategory cat : categoryRepo.findAll().stream()
+                .sorted(Comparator.comparingInt(AssessmentCategory::getDisplayOrder))
+                .collect(Collectors.toList())) {
 
-                    double avgPct = moduleAttempts.stream()
-                            .filter(a -> a.getTotal() > 0)
-                            .mapToDouble(a -> a.getScore() * 100.0 / a.getTotal())
-                            .average().orElse(0);
+            Map<String, List<UserAttempt>> byDegree = attemptsByCategoryAndDegree.getOrDefault(cat.getId(), Map.of());
 
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("assessmentId", mod.getId());
-                    m.put("name", mod.getTitle());
-                    m.put("type", mod.getCategoryId() == null || mod.getCategoryId().isBlank() ? "Uncategorized" : mod.getCategoryId());
-                    m.put("degree", topDegree);
-                    m.put("students", distinctStudents.size());
-                    m.put("completedPct", Math.round(avgPct * 10) / 10.0);
-                    return m;
-                })
+            if (byDegree.isEmpty()) {
+                // No attempts at all yet for this category — still show it so the
+                // category isn't invisible, just with nothing to report.
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("assessmentId", cat.getId() + "-none");
+                m.put("name", cat.getTitle());
+                m.put("degree", "Unspecified");
+                m.put("students", 0);
+                m.put("completedPct", 0.0);
+                rows.add(m);
+                rowFirstSeenAt.add(null);
+                continue;
+            }
+
+            for (Map.Entry<String, List<UserAttempt>> entry : byDegree.entrySet().stream()
+                    .sorted(Map.Entry.comparingByKey())
+                    .collect(Collectors.toList())) {
+                List<UserAttempt> degAttempts = entry.getValue();
+                Set<String> distinctStudents = degAttempts.stream()
+                        .map(UserAttempt::getUserEmail).collect(Collectors.toSet());
+                double avgPct = degAttempts.stream()
+                        .filter(a -> a.getTotal() > 0)
+                        .mapToDouble(a -> a.getScore() * 100.0 / a.getTotal())
+                        .average().orElse(0);
+                LocalDateTime firstSeenAt = degAttempts.stream()
+                        .map(UserAttempt::getAttemptedAt)
+                        .filter(Objects::nonNull)
+                        .min(Comparator.naturalOrder())
+                        .orElse(null);
+
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("assessmentId", cat.getId() + "-" + entry.getKey());
+                m.put("name", cat.getTitle());
+                m.put("degree", entry.getKey());
+                m.put("students", distinctStudents.size());
+                m.put("completedPct", Math.round(avgPct * 10) / 10.0);
+                rows.add(m);
+                rowFirstSeenAt.add(firstSeenAt);
+            }
+        }
+
+        // Most recently introduced (category, degree) row first; rows with no
+        // attempts yet (null timestamp) sink to the bottom.
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) order.add(i);
+        order.sort((i1, i2) -> {
+            LocalDateTime t1 = rowFirstSeenAt.get(i1);
+            LocalDateTime t2 = rowFirstSeenAt.get(i2);
+            if (t1 == null && t2 == null) return 0;
+            if (t1 == null) return 1;
+            if (t2 == null) return -1;
+            return t2.compareTo(t1);
+        });
+        List<Map<String, Object>> orderedRows = new ArrayList<>();
+        for (int i : order) orderedRows.add(rows.get(i));
+        rows = orderedRows;
+
+        rows = rows.stream()
                 .filter(m -> search == null || search.isBlank()
                         || ((String) m.get("name")).toLowerCase().contains(search.toLowerCase()))
-                .filter(m -> type == null || type.isBlank() || type.equalsIgnoreCase((String) m.get("type")))
                 .filter(m -> degree == null || degree.isBlank() || degree.equalsIgnoreCase((String) m.get("degree")))
-                .sorted(Comparator.comparing(m -> (String) m.get("name")))
                 .collect(Collectors.toList());
 
         Map<String, Object> result = paginate(rows, page, size);
         result.put("summary", Map.of(
-                "totalAssessments", (long) moduleRepo.count(),
+                "totalAssessments", (long) categoryRepo.count(),
                 "totalAttempts", allAttempts.size(),
                 "studentsAttempted", allAttempts.stream().map(UserAttempt::getUserEmail).collect(Collectors.toSet()).size(),
                 "averageScorePct", Math.round(allAttempts.stream()

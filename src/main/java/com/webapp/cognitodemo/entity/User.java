@@ -33,6 +33,11 @@ public class User {
     @Column(nullable = false, columnDefinition = "varchar(255) default 'STUDENT'")
     private String role = "STUDENT";
 
+    /* College this TPO admin is scoped to — a TPO admin can only see students
+     * whose undergraduate or postgraduate college matches this value. Not
+     * used for STUDENT accounts. */
+    private String college;
+
     public User() {
     }
 

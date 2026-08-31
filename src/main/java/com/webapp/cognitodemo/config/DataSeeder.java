@@ -1,6 +1,7 @@
 package com.webapp.cognitodemo.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.webapp.cognitodemo.entity.User;
 import com.webapp.cognitodemo.entity.assessment.*;
 import com.webapp.cognitodemo.entity.course.Course;
 import com.webapp.cognitodemo.entity.course.CourseReview;
@@ -26,6 +27,7 @@ public class DataSeeder implements ApplicationRunner {
     @Autowired private AssessmentService assessmentService;
     @Autowired private CommunicationService communicationService;
     @Autowired private AssessmentTopicRepo topicRepo;
+    @Autowired private UserRepo userRepo;
 
     @Override
     public void run(ApplicationArguments args) {
@@ -34,6 +36,7 @@ public class DataSeeder implements ApplicationRunner {
         seedReviews();
         seedAssessments();
         seedTopics();
+        seedTpoAdminCollege();
     }
 
     // ── Courses ───────────────────────────────────────────────────────────────
@@ -544,5 +547,23 @@ public class DataSeeder implements ApplicationRunner {
             List.of("machine","learning","model","algorithm","data","training","prediction","bias","accuracy","classification","neural","feature","dataset","deployment"));
 
         System.out.println("[DataSeeder] Seeded 5 speaking topics and 5 writing prompts.");
+    }
+
+    // ── TPO admin college scoping ────────────────────────────────────────────
+
+    /*
+     * Assigns a college to the known TPO admin account so the college-scoped
+     * TPO panel has something to filter by. Idempotent — only fills it in
+     * when missing, and does nothing if the account doesn't exist yet
+     * (e.g. on a fresh DB before that user has signed up).
+     */
+    private void seedTpoAdminCollege() {
+        userRepo.findByEmail("xisupa@forexzig.com").ifPresent(admin -> {
+            if (admin.getCollege() == null || admin.getCollege().isBlank()) {
+                admin.setCollege("Sunrise Institute of Technology");
+                userRepo.save(admin);
+                System.out.println("[DataSeeder] Set TPO admin college for xisupa@forexzig.com.");
+            }
+        });
     }
 }
