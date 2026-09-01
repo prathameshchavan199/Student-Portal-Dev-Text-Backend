@@ -44,7 +44,7 @@ public class TpoController {
         ));
     }
 
-    @Operation(summary = "Paginated assessment list — one row per assessment category (Technical Skills, Problem Solving, Communication, Data Skills), with undergraduate degree, students, and average score")
+    @Operation(summary = " Assessment list — one row per assessment category (Technical Skills, Problem Solving, Communication, Data Skills), with undergraduate degree, students, and average score")
     @GetMapping("/assessments")
     public ResponseEntity<?> getAssessments(
             @RequestParam(required = false) String search,
