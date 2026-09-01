@@ -11,6 +11,7 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.time.Duration;
 
 @Service
@@ -25,17 +26,24 @@ public class S3Service {
     /*
      * Upload a file to S3 at the given key.
      * Returns the key that was stored (for saving in the DB).
+     *
+     * Streams from the multipart input stream instead of loading the whole
+     * file into a byte[] first (file.getBytes()) — that used to spike heap
+     * usage by the full file size on every upload, which was enough to get
+     * this process OOM-killed on large video uploads.
      */
     public String upload(String key, MultipartFile file) throws IOException {
-        s3Client.putObject(
-                PutObjectRequest.builder()
-                        .bucket(bucketName)
-                        .key(key)
-                        .contentType(file.getContentType())
-                        .contentLength(file.getSize())
-                        .build(),
-                RequestBody.fromBytes(file.getBytes())
-        );
+        try (InputStream in = file.getInputStream()) {
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucketName)
+                            .key(key)
+                            .contentType(file.getContentType())
+                            .contentLength(file.getSize())
+                            .build(),
+                    RequestBody.fromInputStream(in, file.getSize())
+            );
+        }
         return key;
     }
 
