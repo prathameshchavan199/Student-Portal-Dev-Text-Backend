@@ -53,6 +53,12 @@ public class CourseService {
         );
     }
 
+    public Map<String, Object> getCourseById(String id) {
+        Course course = courseRepo.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + id));
+        return toMap(course);
+    }
+
     public Map<String, Object> createCourse(CourseRequest req) {
         if (courseRepo.existsById(req.getId())) {
             throw new IllegalArgumentException("A course with id '" + req.getId() + "' already exists");
@@ -182,6 +188,31 @@ public class CourseService {
     }
 
     /*
+     * Resolves the viewable URL for a lesson's PDF document.
+     * Same priority as video: a plain "pdfUrl" on the lesson (e.g. a bundled/
+     * static asset or external link) is returned as-is; otherwise, if the
+     * lesson has a "pdfKey", a short-lived S3 presigned URL is generated.
+     */
+    public String getLessonPdfUrl(String courseId, int moduleIndex, int lessonIndex) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        Map<String, Object> lesson = getLesson(course, moduleIndex, lessonIndex);
+
+        Object pdfUrl = lesson.get("pdfUrl");
+        if (pdfUrl instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        Object pdfKey = lesson.get("pdfKey");
+        if (pdfKey instanceof String s && !s.isBlank()) {
+            return s3Service.presignedUrl(s, Duration.ofMinutes(30));
+        }
+
+        throw new NoSuchElementException("No PDF found for module " + moduleIndex + ", lesson " + lessonIndex);
+    }
+
+    /*
      * Uploads a video file to S3 for a specific lesson and stores the S3 key
      * on that lesson inside the course's curriculumJson.
      *
@@ -234,6 +265,26 @@ public class CourseService {
         courseRepo.save(course);
 
         return Map.of("videoKey", videoKey);
+    }
+
+    /*
+     * Points a lesson at a PDF that's already sitting in S3 (e.g. uploaded
+     * manually via the AWS console) without re-uploading anything.
+     */
+    public Map<String, Object> setLessonPdfKey(String courseId, int moduleIndex, int lessonIndex, String pdfKey) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
+        Map<String, Object> lesson = getLesson(modules, moduleIndex, lessonIndex);
+
+        lesson.put("pdfKey", pdfKey);
+        lesson.remove("pdfUrl");
+
+        course.setCurriculumJson(serializeJson(modules));
+        courseRepo.save(course);
+
+        return Map.of("pdfKey", pdfKey);
     }
 
     @SuppressWarnings("unchecked")

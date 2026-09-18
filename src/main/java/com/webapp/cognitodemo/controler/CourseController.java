@@ -43,6 +43,22 @@ public class CourseController {
         ));
     }
 
+    @Operation(summary = "Get a single course by ID")
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getCourseById(@PathVariable String id) {
+        try {
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", courseService.getCourseById(id)
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
     @Operation(summary = "Create a new course")
     @PostMapping
     public ResponseEntity<?> createCourse(@Valid @RequestBody CourseRequest request) {
@@ -161,6 +177,25 @@ public class CourseController {
         }
     }
 
+    @Operation(summary = "Redirect to a viewable URL (S3 presigned or static) for a lesson's PDF")
+    @GetMapping("/{id}/lessons/{moduleIndex}/{lessonIndex}/pdf")
+    public ResponseEntity<?> getLessonPdf(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex) {
+        try {
+            String url = courseService.getLessonPdfUrl(id, moduleIndex, lessonIndex);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, url)
+                    .build();
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
     @Operation(summary = "Upload a video for a specific curriculum lesson to S3")
     @PostMapping(value = "/{id}/lessons/{moduleIndex}/{lessonIndex}/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadLessonVideo(
@@ -204,6 +239,33 @@ public class CourseController {
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", courseService.setLessonVideoKey(id, moduleIndex, lessonIndex, videoKey)
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    @Operation(summary = "Link a lesson to a PDF that already exists in S3, without re-uploading")
+    @PostMapping("/{id}/lessons/{moduleIndex}/{lessonIndex}/pdf-key")
+    public ResponseEntity<?> setLessonPdfKey(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex,
+            @RequestBody Map<String, String> body) {
+        try {
+            String pdfKey = body.get("pdfKey");
+            if (pdfKey == null || pdfKey.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "pdfKey is required"
+                ));
+            }
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", courseService.setLessonPdfKey(id, moduleIndex, lessonIndex, pdfKey)
             ));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
