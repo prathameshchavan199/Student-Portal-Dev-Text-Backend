@@ -196,6 +196,33 @@ public class CourseController {
         }
     }
 
+    /*
+     * Unlike the video/pdf endpoints, this does NOT redirect — it returns the
+     * resolved URL as JSON. The frontend needs the raw URL string to embed
+     * into an Office Online viewer link (view.officeapps.live.com), since a
+     * browser can't render a .docx by navigating straight to it the way it
+     * can a video or a PDF.
+     */
+    @Operation(summary = "Get a viewable URL (S3 presigned or static) for a lesson's Word document")
+    @GetMapping("/{id}/lessons/{moduleIndex}/{lessonIndex}/doc")
+    public ResponseEntity<?> getLessonDoc(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex) {
+        try {
+            String url = courseService.getLessonDocUrl(id, moduleIndex, lessonIndex);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", Map.of("url", url)
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
     @Operation(summary = "Upload a video for a specific curriculum lesson to S3")
     @PostMapping(value = "/{id}/lessons/{moduleIndex}/{lessonIndex}/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadLessonVideo(
@@ -236,9 +263,16 @@ public class CourseController {
                         "message", "videoKey is required"
                 ));
             }
+            Map<String, Object> data = courseService.setLessonVideoKey(id, moduleIndex, lessonIndex, videoKey);
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "data", courseService.setLessonVideoKey(id, moduleIndex, lessonIndex, videoKey)
+                    "message", "Video linked to module " + (moduleIndex + 1) + ", lesson " + (lessonIndex + 1),
+                    "data", data
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
             ));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
@@ -263,9 +297,50 @@ public class CourseController {
                         "message", "pdfKey is required"
                 ));
             }
+            Map<String, Object> data = courseService.setLessonPdfKey(id, moduleIndex, lessonIndex, pdfKey);
             return ResponseEntity.ok(Map.of(
                     "success", true,
-                    "data", courseService.setLessonPdfKey(id, moduleIndex, lessonIndex, pdfKey)
+                    "message", "PDF linked to module " + (moduleIndex + 1) + ", lesson " + (lessonIndex + 1),
+                    "data", data
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        } catch (NoSuchElementException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    @Operation(summary = "Link a lesson to a Word document that already exists in S3, without re-uploading")
+    @PostMapping("/{id}/lessons/{moduleIndex}/{lessonIndex}/doc-key")
+    public ResponseEntity<?> setLessonDocKey(
+            @PathVariable String id,
+            @PathVariable int moduleIndex,
+            @PathVariable int lessonIndex,
+            @RequestBody Map<String, String> body) {
+        try {
+            String docKey = body.get("docKey");
+            if (docKey == null || docKey.isBlank()) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "docKey is required"
+                ));
+            }
+            Map<String, Object> data = courseService.setLessonDocKey(id, moduleIndex, lessonIndex, docKey);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Document linked to module " + (moduleIndex + 1) + ", lesson " + (lessonIndex + 1),
+                    "data", data
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
             ));
         } catch (NoSuchElementException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(

@@ -213,6 +213,33 @@ public class CourseService {
     }
 
     /*
+     * Resolves the viewable URL for a lesson's Word document (.docx). Same
+     * priority as video/pdf: a plain "docUrl" is returned as-is; otherwise,
+     * if the lesson has a "docKey", a short-lived S3 presigned URL is
+     * generated. Unlike video/pdf this URL isn't loaded directly by the
+     * browser — it's embedded into an Office Online viewer link, since
+     * browsers can't render .docx natively (see CourseController#getLessonDoc).
+     */
+    public String getLessonDocUrl(String courseId, int moduleIndex, int lessonIndex) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        Map<String, Object> lesson = getLesson(course, moduleIndex, lessonIndex);
+
+        Object docUrl = lesson.get("docUrl");
+        if (docUrl instanceof String s && !s.isBlank()) {
+            return s;
+        }
+
+        Object docKey = lesson.get("docKey");
+        if (docKey instanceof String s && !s.isBlank()) {
+            return s3Service.presignedUrl(s, Duration.ofMinutes(30));
+        }
+
+        throw new NoSuchElementException("No document found for module " + moduleIndex + ", lesson " + lessonIndex);
+    }
+
+    /*
      * Uploads a video file to S3 for a specific lesson and stores the S3 key
      * on that lesson inside the course's curriculumJson.
      *
@@ -258,6 +285,10 @@ public class CourseService {
         List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
         Map<String, Object> lesson = getLesson(modules, moduleIndex, lessonIndex);
 
+        if (!s3Service.doesObjectExist(videoKey)) {
+            throw new IllegalArgumentException("No file found in S3 at key: " + videoKey);
+        }
+
         lesson.put("videoKey", videoKey);
         lesson.remove("videoUrl");
 
@@ -278,6 +309,10 @@ public class CourseService {
         List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
         Map<String, Object> lesson = getLesson(modules, moduleIndex, lessonIndex);
 
+        if (!s3Service.doesObjectExist(pdfKey)) {
+            throw new IllegalArgumentException("No file found in S3 at key: " + pdfKey);
+        }
+
         lesson.put("pdfKey", pdfKey);
         lesson.remove("pdfUrl");
 
@@ -285,6 +320,30 @@ public class CourseService {
         courseRepo.save(course);
 
         return Map.of("pdfKey", pdfKey);
+    }
+
+    /*
+     * Points a lesson at a Word document that's already sitting in S3 (e.g.
+     * uploaded manually via the AWS console) without re-uploading anything.
+     */
+    public Map<String, Object> setLessonDocKey(String courseId, int moduleIndex, int lessonIndex, String docKey) {
+        Course course = courseRepo.findById(courseId)
+                .orElseThrow(() -> new NoSuchElementException("Course not found: " + courseId));
+
+        List<Map<String, Object>> modules = parseCurriculum(course.getCurriculumJson());
+        Map<String, Object> lesson = getLesson(modules, moduleIndex, lessonIndex);
+
+        if (!s3Service.doesObjectExist(docKey)) {
+            throw new IllegalArgumentException("No file found in S3 at key: " + docKey);
+        }
+
+        lesson.put("docKey", docKey);
+        lesson.remove("docUrl");
+
+        course.setCurriculumJson(serializeJson(modules));
+        courseRepo.save(course);
+
+        return Map.of("docKey", docKey);
     }
 
     @SuppressWarnings("unchecked")
