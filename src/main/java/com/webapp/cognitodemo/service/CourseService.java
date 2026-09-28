@@ -164,6 +164,23 @@ public class CourseService {
     }
 
     /*
+     * A lesson can carry a video/pdf/doc *key* before the file itself has been
+     * uploaded to S3 (content is added over time). Presigning a key that has no
+     * object behind it still succeeds, but opening that URL makes S3 answer
+     * with an XML "NoSuchKey" error — which the browser then renders straight
+     * into the lesson's <video>/<iframe>. So confirm the object is really
+     * there first, and report "not available yet" (404) if it isn't, so the
+     * frontend can show a proper "coming soon" message instead.
+     */
+    private String presignIfExists(String key, String kind, int moduleIndex, int lessonIndex) {
+        if (!s3Service.doesObjectExist(key)) {
+            throw new NoSuchElementException(
+                    "The " + kind + " for module " + moduleIndex + ", lesson " + lessonIndex + " isn't available yet");
+        }
+        return s3Service.presignedUrl(key, Duration.ofMinutes(30));
+    }
+
+    /*
      * Resolves the playable URL for a lesson's video.
      * Priority: a plain "videoUrl" on the lesson (e.g. a bundled/static asset
      * or external CDN link) is returned as-is; otherwise, if the lesson has
@@ -182,7 +199,7 @@ public class CourseService {
 
         Object videoKey = lesson.get("videoKey");
         if (videoKey instanceof String s && !s.isBlank()) {
-            return s3Service.presignedUrl(s, Duration.ofMinutes(30));
+            return presignIfExists(s, "video", moduleIndex, lessonIndex);
         }
 
         throw new NoSuchElementException("No video found for module " + moduleIndex + ", lesson " + lessonIndex);
@@ -207,7 +224,7 @@ public class CourseService {
 
         Object pdfKey = lesson.get("pdfKey");
         if (pdfKey instanceof String s && !s.isBlank()) {
-            return s3Service.presignedUrl(s, Duration.ofMinutes(30));
+            return presignIfExists(s, "PDF", moduleIndex, lessonIndex);
         }
 
         throw new NoSuchElementException("No PDF found for module " + moduleIndex + ", lesson " + lessonIndex);
@@ -234,7 +251,7 @@ public class CourseService {
 
         Object docKey = lesson.get("docKey");
         if (docKey instanceof String s && !s.isBlank()) {
-            return s3Service.presignedUrl(s, Duration.ofMinutes(30));
+            return presignIfExists(s, "document", moduleIndex, lessonIndex);
         }
 
         throw new NoSuchElementException("No document found for module " + moduleIndex + ", lesson " + lessonIndex);
@@ -656,3 +673,5 @@ public class CourseService {
         return s != null ? s : "";
     }
 }
+
+
