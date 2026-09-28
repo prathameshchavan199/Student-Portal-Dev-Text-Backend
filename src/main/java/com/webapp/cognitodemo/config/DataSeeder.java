@@ -194,7 +194,7 @@ public class DataSeeder implements ApplicationRunner {
         courseRepo.save(
                 Course.builder()
                         .id("ai-fundamentals")
-                        .title("AI Fundamentals")
+                        .title("AI Fundamentals ")
                         .category("onDemand")
                         .price(499)
                         .duration("6 Hours")
